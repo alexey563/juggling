@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Планировщик трюков жонглирования</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+            overflow: hidden;
+            background: #1a1a1a;
+        }
+
+        #container {
+            display: flex;
+            height: 100vh;
+        }
+
+        #left-sidebar {
+            width: 250px;
+            background: #2a2a2a;
+            color: white;
+            padding: 20px;
+            box-sizing: border-box;
+            overflow-y: auto;
+        }
+
+        #canvas-container {
+            flex: 1;
+            position: relative;
+        }
+
+        #sidebar {
+            width: 250px;
+            background: #2a2a2a;
+            color: white;
+            padding: 20px;
+            box-sizing: border-box;
+            overflow-y: auto;
+        }
+
+        .section {
+            margin-bottom: 30px;
+        }
+
+        .section h3 {
+            margin: 0 0 15px 0;
+            color: #4CAF50;
+        }
+
+        .button {
+            display: block;
+            width: 100%;
+            padding: 10px;
+            margin: 5px 0;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .button:hover {
+            background: #45a049;
+        }
+
+        .controls {
+            margin-top: 20px;
+        }
+
+        .control-group {
+            margin: 10px 0;
+        }
+
+        .control-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 12px;
+        }
+
+        .control-group input {
+            width: 100%;
+            padding: 5px;
+            border: 1px solid #555;
+            background: #333;
+            color: white;
+            border-radius: 3px;
+        }
+
+        #info {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: white;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 12px;
+            z-index: 100;
+        }
+
+        /* Кнопка меню */
+        #menu-button {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            font-size: 20px;
+            cursor: pointer;
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #menu-button:hover {
+            background: #45a049;
+        }
+
+        /* Модальное окно с инструкциями */
+        #instructions-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 2000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background: #2a2a2a;
+            color: white;
+            padding: 30px;
+            border-radius: 10px;
+            max-width: 90%;
+            max-height: 90%;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        .modal-close {
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            background: none;
+            border: none;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+        }
+
+        .instructions-section {
+            margin-bottom: 20px;
+        }
+
+        .instructions-section h3 {
+            color: #4CAF50;
+            margin-bottom: 10px;
+        }
+
+        .instructions-section ul {
+            margin: 0;
+            padding-left: 20px;
+        }
+
+        .instructions-section li {
+            margin-bottom: 5px;
+        }
+
+        /* Мобильные панели управления */
+        #mobile-controls {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(42, 42, 42, 0.95);
+            color: white;
+            padding: 10px;
+            display: none;
+            z-index: 500;
+        }
+
+        .mobile-button-row {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+        }
+
+        .mobile-button {
+            flex: 1;
+            min-width: 80px;
+            padding: 12px 8px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+            text-align: center;
+        }
+
+        .mobile-button:hover {
+            background: #45a049;
+        }
+
+        .mobile-button.active {
+            background: #f44336;
+        }
+
+        /* Адаптивность */
+        @media (max-width: 768px) {
+            #container {
+                flex-direction: column;
+            }
+
+            #left-sidebar,
+            #sidebar {
+                width: 100%;
+                height: auto;
+                max-height: 30vh;
+                position: absolute;
+                top: -100%;
+                left: 0;
+                transition: top 0.3s ease;
+                z-index: 800;
+            }
+
+            #left-sidebar.open,
+            #sidebar.open {
+                top: 0;
+            }
+
+            #canvas-container {
+                width: 100%;
+                height: 100vh;
+            }
+
+            #mobile-controls {
+                display: block;
+            }
+
+            #info {
+                display: none;
+            }
+
+            .modal-content {
+                padding: 20px;
+                margin: 10px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .mobile-button {
+                font-size: 10px;
+                padding: 10px 6px;
+            }
+
+            #menu-button {
+                width: 40px;
+                height: 40px;
+                font-size: 16px;
+            }
+        }
+
+        /* Кнопки переключения панелей на мобильном */
+        #panel-toggles {
+            position: absolute;
+            top: 70px;
+            right: 10px;
+            z-index: 900;
+            display: none;
+        }
+
+        .panel-toggle {
+            display: block;
+            width: 40px;
+            height: 40px;
+            margin-bottom: 5px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+
+        @media (max-width: 768px) {
+            #panel-toggles {
+                display: block;
+            }
+        }
+
+        .drag-mode {
+            cursor: move !important;
+        }
+
+        .pass-edit-mode {
+            cursor: ns-resize !important;
+        }
+
+        .scenario-gallery {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .scenario-item {
+            position: relative;
+            border: 2px solid #555;
+            border-radius: 8px;
+            overflow: hidden;
+            cursor: pointer;
+            transition: border-color 0.3s;
+        }
+
+        .scenario-item:hover {
+            border-color: #4CAF50;
+        }
+
+        .scenario-thumbnail {
+            width: 100%;
+            height: 120px;
+            object-fit: cover;
+            display: block;
+        }
+
+        .scenario-info {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 5px;
+            font-size: 12px;
+        }
+
+        .scenario-name {
+            font-weight: bold;
+            margin-bottom: 2px;
+        }
+
+        .scenario-date {
+            font-size: 10px;
+            opacity: 0.8;
+        }
+
+        .scenario-delete {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background: #f44336;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            font-size: 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .scenario-delete:hover {
+            background: #d32f2f;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="container">
+        <div id="left-sidebar">
+            <div class="section">
+                <h3>Сценарии</h3>
+                <div class="control-group">
+                    <label>Название сценария:</label>
+                    <input type="text" id="scenarioName" placeholder="Введите название">
+                </div>
+                <button class="button" onclick="saveScenario()">Сохранить сценарий</button>
+                <div id="scenarioGallery" class="scenario-gallery">
+                    <!-- Сценарии будут добавлены здесь -->
+                </div>
+            </div>
+        </div>
+
+        <div id="canvas-container">
+
+
+            <button id="menu-button" onclick="toggleInstructions()">?</button>
+
+            <div id="panel-toggles">
+                <button class="panel-toggle" onclick="toggleLeftPanel()">📁</button>
+                <button class="panel-toggle" onclick="toggleRightPanel()">🔧</button>
+            </div>
+
+            <div id="mobile-controls">
+                <div class="mobile-button-row">
+                    <button class="mobile-button" onclick="addJuggler()">+ Жонглёр</button>
+                    <button class="mobile-button" onclick="addCube()">+ Куб</button>
+                    <button class="mobile-button" id="mobile-pass-mode" onclick="togglePassMode()">Перекидки</button>
+                </div>
+                <div class="mobile-button-row">
+                    <button class="mobile-button" onclick="clearSelection()">Снять выделение</button>
+                    <button class="mobile-button" onclick="deleteSelected()">Удалить</button>
+                    <button class="mobile-button" onclick="clearAll()">Очистить всё</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="sidebar">
+            <div class="section">
+                <h3>Добавить объекты</h3>
+                <button class="button" onclick="addJuggler()">Добавить жонглёра</button>
+                <button class="button" onclick="addCube()">Добавить куб</button>
+            </div>
+
+            <div class="section">
+                <h3>Размеры куба</h3>
+                <div class="control-group">
+                    <label>Ширина:</label>
+                    <input type="number" id="cubeWidth" value="0.5" min="0.1" max="3" step="0.1">
+                </div>
+                <div class="control-group">
+                    <label>Высота:</label>
+                    <input type="number" id="cubeHeight" value="0.5" min="0.1" max="3" step="0.1">
+                </div>
+                <div class="control-group">
+                    <label>Длина:</label>
+                    <input type="number" id="cubeDepth" value="0.5" min="0.1" max="3" step="0.1">
+                </div>
+            </div>
+
+            <div class="section">
+                <h3>Управление</h3>
+                <button class="button" onclick="clearSelection()">Снять выделение</button>
+                <button class="button" onclick="deleteSelected()">Удалить выбранное</button>
+                <button class="button" onclick="clearAll()">Очистить всё</button>
+            </div>
+
+            <div class="section">
+                <h3>Перекидки</h3>
+                <div class="control-group">
+                    <label>Количество реквизита:</label>
+                    <input type="number" id="passCount" value="1" min="1" max="10">
+                </div>
+                <button class="button" onclick="togglePassMode()">Режим создания перекидок</button>
+            </div>
+
+            <div class="controls">
+                <h3>Выбранный объект</h3>
+                <div class="control-group">
+                    <label>Поворот (градусы):</label>
+                    <input type="number" id="rotation" step="45" onchange="updateSelectedRotation()">
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно с инструкциями -->
+    <div id="instructions-modal">
+        <div class="modal-content">
+            <button class="modal-close" onclick="toggleInstructions()">&times;</button>
+            <h2>Инструкция по использованию</h2>
+
+            <div class="instructions-section">
+                <h3>🖱️ Управление камерой</h3>
+                <ul>
+                    <li><strong>ЛКМ + перетаскивание:</strong> Поворот камеры вокруг сцены</li>
+                    <li><strong>ПКМ + перетаскивание:</strong> Перемещение камеры</li>
+                    <li><strong>Колесо мыши:</strong> Приближение/отдаление</li>
+                    <li><strong>На мобильном:</strong> Жесты касания для управления камерой</li>
+                </ul>
+            </div>
+
+            <div class="instructions-section">
+                <h3>👤 Работа с объектами</h3>
+                <ul>
+                    <li><strong>Добавление:</strong> Используйте кнопки "Добавить жонглёра" и "Добавить куб"</li>
+                    <li><strong>Выделение:</strong> Кликните по объекту для выделения (желтая рамка)</li>
+                    <li><strong>Перемещение:</strong> ЛКМ на объект → объект становится полупрозрачным → повторный ЛКМ
+                        для установки</li>
+                    <li><strong>Поворот:</strong> При перемещении крутите колесо мыши для поворота на 45°</li>
+                    <li><strong>Размещение:</strong> Объекты можно ставить друг на друга</li>
+                </ul>
+            </div>
+
+            <div class="instructions-section">
+                <h3>🔄 Перекидки</h3>
+                <ul>
+                    <li><strong>Создание:</strong> Включите "Режим создания перекидок" → кликните на двух жонглёрах</li>
+                    <li><strong>Высота:</strong> ЛКМ на линию перекидки → движение мыши вверх/вниз → повторный ЛКМ</li>
+                    <li><strong>Количество:</strong> Настройте количество реквизита перед созданием</li>
+                    <li><strong>Пересечения:</strong> Желтые шарики показывают места пересечения перекидок</li>
+                </ul>
+            </div>
+
+            <div class="instructions-section">
+                <h3>💾 Сценарии</h3>
+                <ul>
+                    <li><strong>Сохранение:</strong> Введите название → "Сохранить сценарий"</li>
+                    <li><strong>Загрузка:</strong> Кликните по миниатюре в левой панели</li>
+                    <li><strong>Удаление:</strong> Нажмите "×" на миниатюре сценария</li>
+                    <li><strong>Автоскриншот:</strong> При сохранении создается миниатюра сцены</li>
+                </ul>
+            </div>
+
+            <div class="instructions-section">
+                <h3>📱 Мобильное управление</h3>
+                <ul>
+                    <li><strong>Панели:</strong> Используйте кнопки 📁 и 🔧 для открытия панелей</li>
+                    <li><strong>Быстрые действия:</strong> Кнопки внизу экрана для основных операций</li>
+                    <li><strong>Касания:</strong> Одиночное касание для выделения, двойное для перемещения</li>
+                    <li><strong>Жесты:</strong> Пинч для масштабирования, свайп для поворота камеры</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="app.js"></script>
+</body>
+
+</html>
