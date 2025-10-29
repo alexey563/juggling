@@ -1099,10 +1099,13 @@ function animate() {
 
 // Создание скриншота сцены
 function captureSceneThumbnail() {
-    // Временно скрываем UI элементы
+    // Временно скрываем UI элементы если они есть
     const info = document.getElementById('info');
-    const originalDisplay = info.style.display;
-    info.style.display = 'none';
+    let originalDisplay = '';
+    if (info) {
+        originalDisplay = info.style.display;
+        info.style.display = 'none';
+    }
     
     // Рендерим сцену
     renderer.render(scene, camera);
@@ -1116,8 +1119,10 @@ function captureSceneThumbnail() {
     // Копируем изображение из рендерера с масштабированием
     ctx.drawImage(renderer.domElement, 0, 0, canvas.width, canvas.height);
     
-    // Восстанавливаем UI
-    info.style.display = originalDisplay;
+    // Восстанавливаем UI если элемент существует
+    if (info) {
+        info.style.display = originalDisplay;
+    }
     
     return canvas.toDataURL('image/jpeg', 0.8);
 }
