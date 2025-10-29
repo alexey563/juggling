@@ -1394,7 +1394,35 @@ document.addEventListener('DOMContentLoaded', function() {
     detectMobile();
     updateMobileUI();
     syncFields();
+    setupPanelScrolling();
 });
+
+// Настройка прокрутки для панелей
+function setupPanelScrolling() {
+    const leftPanel = document.getElementById('left-sidebar');
+    const rightPanel = document.getElementById('sidebar');
+    
+    // Отключаем OrbitControls при касании панелей
+    [leftPanel, rightPanel].forEach(panel => {
+        panel.addEventListener('touchstart', function(e) {
+            controls.enabled = false;
+        }, { passive: true });
+        
+        panel.addEventListener('touchend', function(e) {
+            // Включаем OrbitControls обратно только если панель закрыта
+            setTimeout(() => {
+                if (!panel.classList.contains('open')) {
+                    controls.enabled = true;
+                }
+            }, 100);
+        }, { passive: true });
+        
+        // Предотвращаем всплытие событий прокрутки
+        panel.addEventListener('touchmove', function(e) {
+            e.stopPropagation();
+        }, { passive: true });
+    });
+}
 
 // Переменные для мобильного управления
 let isMobile = false;
@@ -1525,20 +1553,38 @@ function toggleInstructions() {
 
 function toggleLeftPanel() {
     const panel = document.getElementById('left-sidebar');
+    const isOpening = !panel.classList.contains('open');
+    
     panel.classList.toggle('open');
     
     // Закрываем правую панель если открыта
     const rightPanel = document.getElementById('sidebar');
     rightPanel.classList.remove('open');
+    
+    // Отключаем OrbitControls когда панель открыта
+    if (isOpening) {
+        controls.enabled = false;
+    } else {
+        controls.enabled = true;
+    }
 }
 
 function toggleRightPanel() {
     const panel = document.getElementById('sidebar');
+    const isOpening = !panel.classList.contains('open');
+    
     panel.classList.toggle('open');
     
     // Закрываем левую панель если открыта
     const leftPanel = document.getElementById('left-sidebar');
     leftPanel.classList.remove('open');
+    
+    // Отключаем OrbitControls когда панель открыта
+    if (isOpening) {
+        controls.enabled = false;
+    } else {
+        controls.enabled = true;
+    }
 }
 
 // Обновление мобильного интерфейса

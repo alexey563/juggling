@@ -213,7 +213,7 @@
             right: 0;
             background: rgba(42, 42, 42, 0.98);
             color: white;
-            padding: 15px;
+            padding: 15px 15px 25px 15px;
             display: none;
             z-index: 500;
             border-top: 2px solid #4CAF50;
@@ -305,17 +305,20 @@
             #left-sidebar,
             #sidebar {
                 width: 100%;
-                height: calc(100vh - 60px);
+                height: 100vh;
                 position: fixed;
                 top: -100%;
                 left: 0;
                 transition: top 0.3s ease;
                 z-index: 1500;
-                overflow-y: auto;
+                overflow-y: scroll;
                 -webkit-overflow-scrolling: touch;
                 padding-top: 60px;
-                padding-bottom: 20px;
+                padding-bottom: 40px;
                 box-sizing: border-box;
+                /* Принудительная прокрутка */
+                overscroll-behavior: contain;
+                touch-action: pan-y;
             }
 
             #left-sidebar.open,
@@ -379,6 +382,10 @@
                 width: 45px;
                 height: 45px;
                 font-size: 18px;
+            }
+
+            #mobile-controls {
+                padding: 15px 15px 35px 15px;
             }
 
             #instructions-modal {
