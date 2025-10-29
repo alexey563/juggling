@@ -1544,13 +1544,17 @@ function toggleRightPanel() {
 // Обновление мобильного интерфейса
 function updateMobileUI() {
     const passModeBtn = document.getElementById('mobile-pass-mode');
+    const passSettings = document.getElementById('mobile-pass-settings');
+    
     if (passModeBtn) {
         if (passMode) {
             passModeBtn.classList.add('active');
             passModeBtn.textContent = 'Выйти из режима';
+            if (passSettings) passSettings.style.display = 'block';
         } else {
             passModeBtn.classList.remove('active');
             passModeBtn.textContent = 'Перекидки';
+            if (passSettings) passSettings.style.display = 'none';
         }
     }
 }

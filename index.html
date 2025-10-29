@@ -305,7 +305,7 @@
             #left-sidebar,
             #sidebar {
                 width: 100%;
-                height: 100vh;
+                height: calc(100vh - 60px);
                 position: fixed;
                 top: -100%;
                 left: 0;
@@ -314,6 +314,7 @@
                 overflow-y: auto;
                 -webkit-overflow-scrolling: touch;
                 padding-top: 60px;
+                padding-bottom: 20px;
                 box-sizing: border-box;
             }
 
@@ -408,12 +409,7 @@
             }
         }
 
-        /* Мобильные настройки перекидок */
-        @media (max-width: 768px) {
-            .mobile-pass-settings {
-                display: block !important;
-            }
-        }
+
 
         /* Кнопки переключения панелей на мобильном */
         #panel-toggles {
@@ -576,6 +572,15 @@
             </div>
 
             <div id="mobile-controls">
+                <div id="mobile-pass-settings" class="mobile-cube-settings" style="display: none;">
+                    <h4>Настройки перекидок</h4>
+                    <div class="mobile-input-row">
+                        <div class="mobile-input-group">
+                            <label>Количество реквизита:</label>
+                            <input type="number" id="mobilePassCount" value="1" min="1" max="10">
+                        </div>
+                    </div>
+                </div>
                 <div class="mobile-button-row">
                     <button class="mobile-button" onclick="addJuggler()">+ Жонглёр</button>
                     <button class="mobile-button" onclick="addCube()">+ Куб</button>
@@ -631,14 +636,6 @@
                     <input type="number" id="passCount" value="1" min="1" max="10">
                 </div>
                 <button class="button" onclick="togglePassMode()">Режим создания перекидок</button>
-            </div>
-
-            <div class="section mobile-pass-settings" style="display: none;">
-                <h3>Настройки перекидок</h3>
-                <div class="control-group">
-                    <label>Количество реквизита:</label>
-                    <input type="number" id="mobilePassCount" value="1" min="1" max="10">
-                </div>
             </div>
 
             <div class="controls">
