@@ -12,7 +12,7 @@
     <meta http-equiv="Expires" content="0">
 
     <!-- Версия приложения -->
-    <meta name="app-version" content="2.0.0">
+    <meta name="app-version" content="2.4.2">
 
     <title>Планировщик трюков жонглирования</title>
     <style>
@@ -719,6 +719,7 @@
                     <button class="mobile-button" id="mobile-animation-toggle" onclick="toggleAnimation()">▶
                         Анимация</button>
                     <button class="mobile-button" onclick="addKeyframe()">📍 Кадр</button>
+                    <button class="mobile-button" onclick="updateCurrentKeyframe()">🔄 Обновить</button>
                 </div>
             </div>
         </div>
@@ -763,6 +764,7 @@
                 </div>
                 <button class="button" id="animation-toggle" onclick="toggleAnimation()">▶ Запустить анимацию</button>
                 <button class="button" onclick="addKeyframe()">📍 Добавить ключевой кадр</button>
+                <button class="button" onclick="updateCurrentKeyframe()">🔄 Обновить кадр</button>
                 <button class="button" onclick="clearKeyframes()">🗑️ Очистить анимацию</button>
                 <div id="keyframes-list" class="keyframes-list">
                     <!-- Список ключевых кадров будет здесь -->
@@ -879,7 +881,7 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
-    <script src="app.js?v=2.0.0"></script>
+    <script src="app.js?v=2.4.2"></script>
 </body>
 
 </html>
