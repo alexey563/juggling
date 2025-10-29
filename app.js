@@ -1038,6 +1038,18 @@ function togglePassMode() {
 
 // Удаление выбранных объектов
 function deleteSelected() {
+    // Удаление выбранной перекидки
+    if (selectedPass) {
+        const index = passes.indexOf(selectedPass);
+        if (index > -1) {
+            scene.remove(selectedPass);
+            passes.splice(index, 1);
+        }
+        clearPassSelection();
+        return;
+    }
+    
+    // Удаление выбранных объектов
     selectedObjects.forEach(object => {
         scene.remove(object);
         
@@ -1695,4 +1707,31 @@ document.getElementById('instructions-modal').addEventListener('touchmove', func
         event.preventDefault();
     }
 }, { passive: false });
+
+// Дополнительная настройка прокрутки для модального окна
+document.addEventListener('DOMContentLoaded', function() {
+    const modal = document.getElementById('instructions-modal');
+    const modalContent = modal.querySelector('.modal-content');
+    
+    // Отключаем OrbitControls когда модальное окно открыто
+    const originalToggleInstructions = window.toggleInstructions;
+    window.toggleInstructions = function() {
+        const isVisible = modal.style.display === 'flex';
+        originalToggleInstructions();
+        
+        // Управляем OrbitControls
+        if (controls) {
+            controls.enabled = isVisible; // Если закрываем - включаем, если открываем - отключаем
+        }
+    };
+    
+    // Предотвращаем всплытие событий прокрутки из модального окна
+    modalContent.addEventListener('touchstart', function(e) {
+        if (controls) controls.enabled = false;
+    }, { passive: true });
+    
+    modalContent.addEventListener('touchend', function(e) {
+        // OrbitControls включится при закрытии модального окна
+    }, { passive: true });
+});
 
