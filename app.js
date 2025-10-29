@@ -1700,15 +1700,7 @@ document.getElementById('instructions-modal').addEventListener('click', function
     }
 });
 
-// Предотвращение закрытия модального окна при прокрутке на мобильных
-document.getElementById('instructions-modal').addEventListener('touchmove', function(event) {
-    // Разрешаем прокрутку только внутри modal-content
-    if (!event.target.closest('.modal-content')) {
-        event.preventDefault();
-    }
-}, { passive: false });
-
-// Дополнительная настройка прокрутки для модального окна
+// Настройка модального окна инструкций
 document.addEventListener('DOMContentLoaded', function() {
     const modal = document.getElementById('instructions-modal');
     const modalContent = modal.querySelector('.modal-content');
@@ -1725,9 +1717,13 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     };
     
-    // Предотвращаем всплытие событий прокрутки из модального окна
+    // Настройка прокрутки для мобильных (аналогично панелям)
     modalContent.addEventListener('touchstart', function(e) {
         if (controls) controls.enabled = false;
+    }, { passive: true });
+    
+    modalContent.addEventListener('touchmove', function(e) {
+        e.stopPropagation();
     }, { passive: true });
     
     modalContent.addEventListener('touchend', function(e) {

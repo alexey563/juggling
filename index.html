@@ -169,19 +169,29 @@
             z-index: 2001;
         }
 
-        /* Улучшение прокрутки на мобильных */
+        /* Стили кнопки закрытия для мобильных */
         @media (max-width: 768px) {
-            .modal-content {
-                /* Принудительная прокрутка */
-                overflow-y: scroll !important;
-                -webkit-overflow-scrolling: touch !important;
-                /* Убираем возможность случайного закрытия при прокрутке */
-                touch-action: pan-y;
-                overscroll-behavior: contain;
-                /* Дополнительные отступы для безопасных зон */
-                padding-bottom: calc(50px + env(safe-area-inset-bottom)) !important;
+            .modal-close {
+                position: fixed;
+                top: 10px;
+                right: 10px;
+                background: #f44336;
+                color: white;
+                border: none;
+                border-radius: 50%;
+                width: 40px;
+                height: 40px;
+                font-size: 20px;
+                cursor: pointer;
+                z-index: 2001;
+                display: flex;
+                align-items: center;
+                justify-content: center;
             }
+        }
 
+        /* Дополнительные стили для инструкций на мобильных */
+        @media (max-width: 768px) {
             .instructions-section {
                 margin-bottom: 25px;
             }
@@ -354,24 +364,33 @@
             }
 
             #instructions-modal {
-                padding: 10px;
+                padding: 0;
                 align-items: flex-start;
                 justify-content: flex-start;
+                background: #2a2a2a;
             }
 
             .modal-content {
-                padding: 20px;
+                padding: 60px 20px 40px 20px;
                 margin: 0;
                 max-width: 100%;
                 max-height: 100%;
                 width: 100%;
-                height: 100%;
+                height: 100vh;
+                height: 100dvh;
                 font-size: 14px;
                 line-height: 1.4;
                 border-radius: 0;
-                overflow-y: auto;
+                overflow-y: scroll;
                 -webkit-overflow-scrolling: touch;
                 box-sizing: border-box;
+                background: #2a2a2a;
+                overscroll-behavior: contain;
+                touch-action: pan-y;
+                padding-top: max(60px, env(safe-area-inset-top));
+                padding-bottom: max(40px, env(safe-area-inset-bottom));
+                padding-left: env(safe-area-inset-left);
+                padding-right: env(safe-area-inset-right);
             }
 
             .instructions-section h3 {
@@ -403,16 +422,19 @@
             }
 
             #instructions-modal {
-                padding: 5px;
+                padding: 0;
             }
 
             .modal-content {
-                padding: 15px;
+                padding: 60px 15px 40px 15px;
                 margin: 0;
                 font-size: 13px;
                 width: 100%;
-                height: 100%;
+                height: 100vh;
+                height: 100dvh;
                 border-radius: 0;
+                padding-top: max(60px, env(safe-area-inset-top));
+                padding-bottom: max(40px, env(safe-area-inset-bottom));
             }
 
             .instructions-section h3 {
@@ -426,7 +448,9 @@
             .modal-close {
                 top: 5px;
                 right: 10px;
-                font-size: 28px;
+                width: 35px;
+                height: 35px;
+                font-size: 18px;
             }
         }
 
