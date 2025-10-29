@@ -15,6 +15,25 @@ let isDraggingObject = false;
 let isDraggingPass = false;
 let draggedObject = null;
 
+// Уникальный ID пользователя для персональных сценариев
+let userId = localStorage.getItem('jugglingUserId');
+if (!userId) {
+    userId = 'user_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+    localStorage.setItem('jugglingUserId', userId);
+}
+
+// Переменные для новой логики перемещения
+let holdTimer = null;
+let isHolding = false;
+let holdStartTime = 0;
+const HOLD_DURATION = 800; // 800ms для активации перемещения
+let controlsActive = false;
+
+// Переменные для определения намерения пользователя
+let pointerStartPos = { x: 0, y: 0 };
+let hasMovedDuringHold = false;
+const MOVEMENT_THRESHOLD = 10; // пикселей - если пользователь сдвинул мышь больше этого, считаем что он хочет повернуть камеру
+
 // Raycaster для выбора объектов
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
@@ -41,6 +60,15 @@ function init() {
     controls = new THREE.OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.dampingFactor = 0.05;
+    
+    // Отслеживаем события OrbitControls
+    controls.addEventListener('start', function() {
+        controlsActive = true;
+    });
+    
+    controls.addEventListener('end', function() {
+        controlsActive = false;
+    });
 
     // Освещение
     const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
@@ -72,11 +100,18 @@ function init() {
     dragPlane.rotation.x = -Math.PI / 2;
     scene.add(dragPlane);
 
-    // Обработчики событий
+    // Обработчики событий - используем pointer события которые срабатывают раньше
+    renderer.domElement.addEventListener('pointerdown', onPointerDown);
+    renderer.domElement.addEventListener('pointerup', onPointerUp);
+    renderer.domElement.addEventListener('pointermove', onPointerMove);
     renderer.domElement.addEventListener('click', onMouseClick);
     renderer.domElement.addEventListener('contextmenu', onRightClick);
-    renderer.domElement.addEventListener('mousemove', onMouseMove);
     renderer.domElement.addEventListener('wheel', onMouseWheel);
+    
+    // Глобальный обработчик движения для отслеживания намерения пользователя
+    document.addEventListener('pointermove', onGlobalPointerMove);
+    
+
     
     // Мобильные события
     renderer.domElement.addEventListener('touchstart', onTouchStart, { passive: false });
@@ -256,25 +291,52 @@ function addCube() {
     cubes.push(cube);
 }
 
+// Добавление куба с мобильными параметрами
+function addCubeFromMobile() {
+    const width = parseFloat(document.getElementById('mobileCubeWidth').value) || 0.5;
+    const height = parseFloat(document.getElementById('mobileCubeHeight').value) || 0.5;
+    const depth = parseFloat(document.getElementById('mobileCubeDepth').value) || 0.5;
+    
+    // Синхронизируем с основными полями
+    document.getElementById('cubeWidth').value = width;
+    document.getElementById('cubeHeight').value = height;
+    document.getElementById('cubeDepth').value = depth;
+    
+    const geometry = new THREE.BoxGeometry(width, height, depth);
+    const material = new THREE.MeshLambertMaterial({ color: 0xff9800 });
+    const cube = new THREE.Mesh(geometry, material);
+    
+    cube.position.set(
+        Math.random() * 6 - 3,
+        height / 2,
+        Math.random() * 6 - 3
+    );
+    cube.castShadow = true;
+    cube.receiveShadow = true;
+    cube.userData = { 
+        type: 'cube', 
+        id: cubes.length, 
+        height: height,
+        width: width,
+        depth: depth
+    };
+    
+    scene.add(cube);
+    cubes.push(cube);
+}
+
 // Обработка клика мыши
 function onMouseClick(event) {
+    // Игнорируем клик если он был частью удержания
+    if (isHolding || isDraggingObject || isDraggingPass) {
+        return;
+    }
+    
     const rect = renderer.domElement.getBoundingClientRect();
     mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
     mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
 
     raycaster.setFromCamera(mouse, camera);
-    
-    // Если уже перетаскиваем объект, завершаем перетаскивание
-    if (isDraggingObject) {
-        finishObjectDragging();
-        return;
-    }
-    
-    // Если уже изменяем высоту перекидки, завершаем изменение
-    if (isDraggingPass) {
-        finishPassDragging();
-        return;
-    }
     
     // Проверка пересечения с перекидками
     const passObjects = passes.map(p => p.userData.line);
@@ -283,7 +345,7 @@ function onMouseClick(event) {
         const passLine = passIntersects[0].object;
         const pass = passes.find(p => p.userData.line === passLine);
         if (pass) {
-            startPassDragging(pass);
+            selectPass(pass);
             return;
         }
     }
@@ -302,21 +364,177 @@ function onMouseClick(event) {
         if (passMode && clickedObject.userData.type === 'juggler') {
             handlePassCreation(clickedObject);
         } else {
-            startObjectDragging(clickedObject);
+            // Простое выделение объекта
+            handleObjectSelection(clickedObject, event.shiftKey);
         }
     } else if (!event.shiftKey) {
         clearSelection();
     }
 }
 
+// Начало удержания объекта
+function startObjectHold(object, event) {
+    clearHoldTimer();
+    isHolding = true;
+    holdStartTime = Date.now();
+    hasMovedDuringHold = false;
+    
+    holdTimer = setTimeout(() => {
+        if (isHolding && !hasMovedDuringHold) {
+            // Пользователь не двигал мышь - начинаем перетаскивание
+            if (!selectedObjects.includes(object)) {
+                clearSelection();
+                selectObject(object);
+            }
+            startObjectDragging(object);
+        } else if (hasMovedDuringHold) {
+            // Пользователь двигал мышь - просто выделяем объект
+            if (!selectedObjects.includes(object)) {
+                clearSelection();
+                selectObject(object);
+            }
+        }
+    }, HOLD_DURATION);
+}
+
+// Начало удержания перекидки
+function startPassHold(pass, event) {
+    clearHoldTimer();
+    isHolding = true;
+    holdStartTime = Date.now();
+    hasMovedDuringHold = false;
+    
+    selectPass(pass);
+    
+    holdTimer = setTimeout(() => {
+        if (isHolding && !hasMovedDuringHold) {
+            // Пользователь не двигал мышь - начинаем изменение высоты
+            startPassDragging(pass);
+        }
+        // Если пользователь двигал мышь - просто оставляем перекидку выделенной
+    }, HOLD_DURATION);
+}
+
+// Очистка таймера удержания
+function clearHoldTimer() {
+    if (holdTimer) {
+        clearTimeout(holdTimer);
+        holdTimer = null;
+    }
+    isHolding = false;
+    
+    // Включаем OrbitControls обратно если не перетаскиваем
+    if (!isDraggingObject && !isDraggingPass) {
+        controls.enabled = true;
+    }
+}
+
+// Обработка нажатия указателя (мышь/палец)
+function onPointerDown(event) {
+    if (event.button === 0 || event.pointerType === 'touch') { // Левая кнопка мыши или касание
+        
+        // Запоминаем начальную позицию указателя
+        pointerStartPos.x = event.clientX;
+        pointerStartPos.y = event.clientY;
+        hasMovedDuringHold = false;
+        
+        // Сначала проверяем, есть ли объект под курсором
+        const rect = renderer.domElement.getBoundingClientRect();
+        mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+        mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+        raycaster.setFromCamera(mouse, camera);
+        
+        // Проверяем все объекты и перекидки
+        const passObjects = passes.map(p => p.userData.line);
+        const passIntersects = raycaster.intersectObjects(passObjects);
+        const allObjects = [...jugglers, ...cubes];
+        const objectIntersects = raycaster.intersectObjects(allObjects, true);
+        
+        if (passIntersects.length > 0 || objectIntersects.length > 0) {
+            // Есть объект под курсором - временно отключаем OrbitControls
+            controls.enabled = false;
+            
+            // Обрабатываем объект
+            handlePointerDownOnObjects(event);
+        }
+    }
+}
+
+// Обработка объектов при нажатии
+function handlePointerDownOnObjects(event) {
+    // Координаты уже вычислены в onPointerDown, используем raycaster
+    
+    // Проверка пересечения с перекидками
+    const passObjects = passes.map(p => p.userData.line);
+    const passIntersects = raycaster.intersectObjects(passObjects);
+    if (passIntersects.length > 0) {
+        const passLine = passIntersects[0].object;
+        const pass = passes.find(p => p.userData.line === passLine);
+        if (pass) {
+            startPassHold(pass, event);
+            return;
+        }
+    }
+    
+    const allObjects = [...jugglers, ...cubes];
+    const intersects = raycaster.intersectObjects(allObjects, true);
+
+    if (intersects.length > 0) {
+        let clickedObject = intersects[0].object;
+        
+        // Найти родительский объект (группу)
+        while (clickedObject.parent && !clickedObject.userData.type) {
+            clickedObject = clickedObject.parent;
+        }
+
+        if (!passMode || clickedObject.userData.type !== 'juggler') {
+            startObjectHold(clickedObject, event);
+        }
+    }
+}
+
+// Обработка отпускания указателя
+function onPointerUp(event) {
+    if (event.button === 0 || event.pointerType === 'touch') { // Левая кнопка мыши или касание
+        clearHoldTimer();
+        
+        // Если перетаскиваем объект, завершаем перетаскивание
+        if (isDraggingObject) {
+            finishObjectDragging();
+        }
+        
+        // Если изменяем высоту перекидки, завершаем изменение
+        if (isDraggingPass) {
+            finishPassDragging();
+        }
+    }
+}
+
 // Обработка правого клика
 function onRightClick(event) {
     event.preventDefault();
-    // Убираем обработку ПКМ для завершения перетаскивания
+    clearHoldTimer();
 }
 
-// Обработка движения мыши
-function onMouseMove(event) {
+// Глобальный обработчик движения для отслеживания намерения пользователя
+function onGlobalPointerMove(event) {
+    // Проверяем движение только во время удержания, но до начала перетаскивания
+    if (isHolding && !isDraggingObject && !isDraggingPass) {
+        const deltaX = Math.abs(event.clientX - pointerStartPos.x);
+        const deltaY = Math.abs(event.clientY - pointerStartPos.y);
+        const totalMovement = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+        
+        if (totalMovement > MOVEMENT_THRESHOLD) {
+            hasMovedDuringHold = true;
+            clearHoldTimer(); // Отменяем удержание
+            controls.enabled = true; // Включаем управление камерой
+        }
+    }
+}
+
+// Обработка движения указателя
+function onPointerMove(event) {
     if (!isDraggingObject && !isDraggingPass) return;
     
     const rect = renderer.domElement.getBoundingClientRect();
@@ -917,6 +1135,7 @@ function saveScenario() {
     
     const scenario = {
         name: scenarioName,
+        userId: userId, // Добавляем ID пользователя
         timestamp: new Date().toISOString(),
         thumbnail: thumbnail,
         jugglers: jugglers.map(juggler => ({
@@ -957,10 +1176,11 @@ function saveScenario() {
         }))
     };
     
-    // Сохраняем в localStorage
-    const savedScenarios = JSON.parse(localStorage.getItem('jugglingScenarios') || '{}');
+    // Сохраняем в localStorage с уникальным ключом для пользователя
+    const storageKey = `jugglingScenarios_${userId}`;
+    const savedScenarios = JSON.parse(localStorage.getItem(storageKey) || '{}');
     savedScenarios[scenarioName] = scenario;
-    localStorage.setItem('jugglingScenarios', JSON.stringify(savedScenarios));
+    localStorage.setItem(storageKey, JSON.stringify(savedScenarios));
     
     // Обновляем галерею сценариев
     updateScenarioGallery();
@@ -973,7 +1193,8 @@ function saveScenario() {
 
 // Загрузка сценария
 function loadScenario(scenarioName) {
-    const savedScenarios = JSON.parse(localStorage.getItem('jugglingScenarios') || '{}');
+    const storageKey = `jugglingScenarios_${userId}`;
+    const savedScenarios = JSON.parse(localStorage.getItem(storageKey) || '{}');
     const scenario = savedScenarios[scenarioName];
     
     if (!scenario) {
@@ -1106,9 +1327,10 @@ function deleteScenario(scenarioName, event) {
     event.stopPropagation(); // Предотвращаем загрузку сценария при клике на кнопку удаления
     
     if (confirm(`Вы уверены, что хотите удалить сценарий "${scenarioName}"?`)) {
-        const savedScenarios = JSON.parse(localStorage.getItem('jugglingScenarios') || '{}');
+        const storageKey = `jugglingScenarios_${userId}`;
+        const savedScenarios = JSON.parse(localStorage.getItem(storageKey) || '{}');
         delete savedScenarios[scenarioName];
-        localStorage.setItem('jugglingScenarios', JSON.stringify(savedScenarios));
+        localStorage.setItem(storageKey, JSON.stringify(savedScenarios));
         
         updateScenarioGallery();
         alert(`Сценарий "${scenarioName}" удален!`);
@@ -1118,7 +1340,8 @@ function deleteScenario(scenarioName, event) {
 // Обновление галереи сценариев
 function updateScenarioGallery() {
     const gallery = document.getElementById('scenarioGallery');
-    const savedScenarios = JSON.parse(localStorage.getItem('jugglingScenarios') || '{}');
+    const storageKey = `jugglingScenarios_${userId}`;
+    const savedScenarios = JSON.parse(localStorage.getItem(storageKey) || '{}');
     
     // Очищаем галерею
     gallery.innerHTML = '';
@@ -1163,12 +1386,42 @@ function updateScenarioGallery() {
     });
 }
 
+// Синхронизация полей размеров куба
+function syncCubeSizes() {
+    // Синхронизация с мобильными полями при изменении десктопных
+    document.getElementById('cubeWidth').addEventListener('input', function() {
+        document.getElementById('mobileCubeWidth').value = this.value;
+    });
+    
+    document.getElementById('cubeHeight').addEventListener('input', function() {
+        document.getElementById('mobileCubeHeight').value = this.value;
+    });
+    
+    document.getElementById('cubeDepth').addEventListener('input', function() {
+        document.getElementById('mobileCubeDepth').value = this.value;
+    });
+    
+    // Синхронизация с десктопными полями при изменении мобильных
+    document.getElementById('mobileCubeWidth').addEventListener('input', function() {
+        document.getElementById('cubeWidth').value = this.value;
+    });
+    
+    document.getElementById('mobileCubeHeight').addEventListener('input', function() {
+        document.getElementById('cubeHeight').value = this.value;
+    });
+    
+    document.getElementById('mobileCubeDepth').addEventListener('input', function() {
+        document.getElementById('cubeDepth').value = this.value;
+    });
+}
+
 // Запуск приложения после загрузки DOM
 document.addEventListener('DOMContentLoaded', function() {
     init();
     updateScenarioGallery();
     detectMobile();
     updateMobileUI();
+    syncCubeSizes();
 });
 
 // Переменные для мобильного управления
@@ -1211,6 +1464,20 @@ function onTouchStart(event) {
         mouse.y = -((touch.clientY - rect.top) / rect.height) * 2 + 1;
         
         raycaster.setFromCamera(mouse, camera);
+        
+        // Проверка пересечения с перекидками
+        const passObjects = passes.map(p => p.userData.line);
+        const passIntersects = raycaster.intersectObjects(passObjects);
+        if (passIntersects.length > 0) {
+            const passLine = passIntersects[0].object;
+            const pass = passes.find(p => p.userData.line === passLine);
+            if (pass) {
+                lastTouchObject = null;
+                startPassHold(pass, event);
+                return;
+            }
+        }
+        
         const allObjects = [...jugglers, ...cubes];
         const intersects = raycaster.intersectObjects(allObjects, true);
         
@@ -1220,6 +1487,11 @@ function onTouchStart(event) {
                 touchedObject = touchedObject.parent;
             }
             lastTouchObject = touchedObject;
+            
+            // Начинаем удержание для объекта
+            if (!passMode || touchedObject.userData.type !== 'juggler') {
+                startObjectHold(touchedObject, event);
+            }
         } else {
             lastTouchObject = null;
         }
@@ -1233,6 +1505,7 @@ function onTouchMove(event) {
 
 function onTouchEnd(event) {
     event.preventDefault();
+    clearHoldTimer();
     
     if (event.changedTouches.length === 1) {
         const touchEndTime = Date.now();
@@ -1243,14 +1516,21 @@ function onTouchEnd(event) {
         const deltaY = Math.abs(touch.clientY - touchStartPos.y);
         const isStaticTouch = deltaX < 10 && deltaY < 10;
         
+        // Если перетаскиваем объект или перекидку, завершаем
+        if (isDraggingObject) {
+            finishObjectDragging();
+            return;
+        }
+        
+        if (isDraggingPass) {
+            finishPassDragging();
+            return;
+        }
+        
         if (isStaticTouch && touchDuration < 300) {
             // Короткое касание - выделение
             if (lastTouchObject) {
-                if (isDraggingObject && draggedObject === lastTouchObject) {
-                    finishObjectDragging();
-                } else if (isDraggingPass) {
-                    finishPassDragging();
-                } else if (passMode && lastTouchObject.userData.type === 'juggler') {
+                if (passMode && lastTouchObject.userData.type === 'juggler') {
                     handlePassCreation(lastTouchObject);
                 } else {
                     handleObjectSelection(lastTouchObject, false);
@@ -1258,11 +1538,9 @@ function onTouchEnd(event) {
             } else {
                 clearSelection();
             }
-        } else if (isStaticTouch && touchDuration >= 300) {
-            // Длинное касание - начало перемещения
-            if (lastTouchObject && !isDraggingObject && !passMode) {
-                startObjectDragging(lastTouchObject);
-            }
+        } else if (isStaticTouch && touchDuration >= HOLD_DURATION) {
+            // Длинное касание уже обработано в таймере
+            // Ничего не делаем, объект уже в режиме перетаскивания
         }
     }
 }
@@ -1326,6 +1604,60 @@ document.addEventListener('touchmove', function(event) {
         event.preventDefault();
     }
 }, { passive: false });
+
+// Экспорт сценариев в файл
+function exportScenarios() {
+    const storageKey = `jugglingScenarios_${userId}`;
+    const savedScenarios = JSON.parse(localStorage.getItem(storageKey) || '{}');
+    
+    if (Object.keys(savedScenarios).length === 0) {
+        alert('Нет сценариев для экспорта');
+        return;
+    }
+    
+    const dataStr = JSON.stringify(savedScenarios, null, 2);
+    const dataBlob = new Blob([dataStr], {type: 'application/json'});
+    
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(dataBlob);
+    link.download = 'juggling_scenarios.json';
+    link.click();
+    
+    alert('Сценарии экспортированы в файл juggling_scenarios.json');
+}
+
+// Импорт сценариев из файла
+function importScenarios() {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    
+    input.onchange = function(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const importedScenarios = JSON.parse(e.target.result);
+                const storageKey = `jugglingScenarios_${userId}`;
+                const existingScenarios = JSON.parse(localStorage.getItem(storageKey) || '{}');
+                
+                // Объединяем существующие и импортированные сценарии
+                const mergedScenarios = {...existingScenarios, ...importedScenarios};
+                localStorage.setItem(storageKey, JSON.stringify(mergedScenarios));
+                
+                updateScenarioGallery();
+                alert(`Импортировано ${Object.keys(importedScenarios).length} сценариев`);
+            } catch (error) {
+                alert('Ошибка при импорте файла. Проверьте формат файла.');
+            }
+        };
+        reader.readAsText(file);
+    };
+    
+    input.click();
+}
 
 // Закрытие модального окна при клике вне его
 document.getElementById('instructions-modal').addEventListener('click', function(event) {

@@ -3,7 +3,8 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0, minimum-scale=1.0">
     <title>Планировщик трюков жонглирования</title>
     <style>
         body {
@@ -186,39 +187,89 @@
             bottom: 0;
             left: 0;
             right: 0;
-            background: rgba(42, 42, 42, 0.95);
+            background: rgba(42, 42, 42, 0.98);
             color: white;
-            padding: 10px;
+            padding: 15px;
             display: none;
             z-index: 500;
+            border-top: 2px solid #4CAF50;
+            backdrop-filter: blur(10px);
         }
 
         .mobile-button-row {
             display: flex;
-            gap: 10px;
-            margin-bottom: 10px;
+            gap: 8px;
+            margin-bottom: 12px;
             flex-wrap: wrap;
         }
 
         .mobile-button {
             flex: 1;
-            min-width: 80px;
-            padding: 12px 8px;
+            min-width: 90px;
+            padding: 14px 10px;
             background: #4CAF50;
             color: white;
             border: none;
-            border-radius: 6px;
-            font-size: 12px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 500;
             cursor: pointer;
             text-align: center;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+            transition: all 0.2s ease;
         }
 
         .mobile-button:hover {
             background: #45a049;
+            transform: translateY(-1px);
         }
 
         .mobile-button.active {
             background: #f44336;
+            box-shadow: 0 4px 8px rgba(244, 67, 54, 0.3);
+        }
+
+        /* Мобильные настройки куба */
+        .mobile-cube-settings {
+            background: rgba(76, 175, 80, 0.1);
+            border: 1px solid #4CAF50;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 12px;
+        }
+
+        .mobile-cube-settings h4 {
+            margin: 0 0 10px 0;
+            color: #4CAF50;
+            font-size: 14px;
+        }
+
+        .mobile-input-row {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .mobile-input-group {
+            flex: 1;
+        }
+
+        .mobile-input-group label {
+            display: block;
+            font-size: 11px;
+            margin-bottom: 4px;
+            color: #ccc;
+        }
+
+        .mobile-input-group input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #555;
+            background: #333;
+            color: white;
+            border-radius: 4px;
+            font-size: 12px;
+            box-sizing: border-box;
         }
 
         /* Адаптивность */
@@ -231,12 +282,14 @@
             #sidebar {
                 width: 100%;
                 height: auto;
-                max-height: 30vh;
+                max-height: 40vh;
                 position: absolute;
                 top: -100%;
                 left: 0;
                 transition: top 0.3s ease;
                 z-index: 800;
+                overflow-y: auto;
+                -webkit-overflow-scrolling: touch;
             }
 
             #left-sidebar.open,
@@ -258,21 +311,59 @@
             }
 
             .modal-content {
-                padding: 20px;
-                margin: 10px;
+                padding: 15px;
+                margin: 5px;
+                max-width: 95%;
+                max-height: 95%;
+                font-size: 14px;
+                line-height: 1.4;
+            }
+
+            .instructions-section h3 {
+                font-size: 16px;
+                margin-bottom: 8px;
+            }
+
+            .instructions-section li {
+                margin-bottom: 8px;
+                font-size: 13px;
             }
         }
 
         @media (max-width: 480px) {
             .mobile-button {
-                font-size: 10px;
-                padding: 10px 6px;
+                font-size: 11px;
+                padding: 12px 8px;
+                min-width: 85px;
             }
 
             #menu-button {
-                width: 40px;
-                height: 40px;
-                font-size: 16px;
+                width: 45px;
+                height: 45px;
+                font-size: 18px;
+            }
+
+            .modal-content {
+                padding: 12px;
+                margin: 3px;
+                font-size: 13px;
+            }
+
+            .instructions-section h3 {
+                font-size: 15px;
+            }
+
+            .instructions-section li {
+                font-size: 12px;
+            }
+
+            .mobile-cube-settings {
+                padding: 10px;
+            }
+
+            .mobile-input-group input {
+                padding: 6px;
+                font-size: 11px;
             }
         }
 
@@ -394,6 +485,8 @@
                     <input type="text" id="scenarioName" placeholder="Введите название">
                 </div>
                 <button class="button" onclick="saveScenario()">Сохранить сценарий</button>
+                <button class="button" onclick="exportScenarios()">Экспорт сценариев</button>
+                <button class="button" onclick="importScenarios()">Импорт сценариев</button>
                 <div id="scenarioGallery" class="scenario-gallery">
                     <!-- Сценарии будут добавлены здесь -->
                 </div>
@@ -411,9 +504,26 @@
             </div>
 
             <div id="mobile-controls">
+                <div class="mobile-cube-settings">
+                    <h4>Размеры куба</h4>
+                    <div class="mobile-input-row">
+                        <div class="mobile-input-group">
+                            <label>Ширина:</label>
+                            <input type="number" id="mobileCubeWidth" value="0.5" min="0.1" max="3" step="0.1">
+                        </div>
+                        <div class="mobile-input-group">
+                            <label>Высота:</label>
+                            <input type="number" id="mobileCubeHeight" value="0.5" min="0.1" max="3" step="0.1">
+                        </div>
+                        <div class="mobile-input-group">
+                            <label>Длина:</label>
+                            <input type="number" id="mobileCubeDepth" value="0.5" min="0.1" max="3" step="0.1">
+                        </div>
+                    </div>
+                </div>
                 <div class="mobile-button-row">
                     <button class="mobile-button" onclick="addJuggler()">+ Жонглёр</button>
-                    <button class="mobile-button" onclick="addCube()">+ Куб</button>
+                    <button class="mobile-button" onclick="addCubeFromMobile()">+ Куб</button>
                     <button class="mobile-button" id="mobile-pass-mode" onclick="togglePassMode()">Перекидки</button>
                 </div>
                 <div class="mobile-button-row">
