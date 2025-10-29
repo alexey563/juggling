@@ -291,39 +291,7 @@ function addCube() {
     cubes.push(cube);
 }
 
-// Добавление куба с мобильными параметрами
-function addCubeFromMobile() {
-    const width = parseFloat(document.getElementById('mobileCubeWidth').value) || 0.5;
-    const height = parseFloat(document.getElementById('mobileCubeHeight').value) || 0.5;
-    const depth = parseFloat(document.getElementById('mobileCubeDepth').value) || 0.5;
-    
-    // Синхронизируем с основными полями
-    document.getElementById('cubeWidth').value = width;
-    document.getElementById('cubeHeight').value = height;
-    document.getElementById('cubeDepth').value = depth;
-    
-    const geometry = new THREE.BoxGeometry(width, height, depth);
-    const material = new THREE.MeshLambertMaterial({ color: 0xff9800 });
-    const cube = new THREE.Mesh(geometry, material);
-    
-    cube.position.set(
-        Math.random() * 6 - 3,
-        height / 2,
-        Math.random() * 6 - 3
-    );
-    cube.castShadow = true;
-    cube.receiveShadow = true;
-    cube.userData = { 
-        type: 'cube', 
-        id: cubes.length, 
-        height: height,
-        width: width,
-        depth: depth
-    };
-    
-    scene.add(cube);
-    cubes.push(cube);
-}
+
 
 // Обработка клика мыши
 function onMouseClick(event) {
@@ -941,6 +909,30 @@ function updateSelectedRotation() {
     }
 }
 
+// Поворот выбранного объекта влево (для мобильных)
+function rotateSelectedLeft() {
+    if (selectedObjects.length === 1) {
+        const object = selectedObjects[0];
+        let currentRotation = object.rotation.y * 180 / Math.PI;
+        currentRotation -= 45;
+        currentRotation = ((currentRotation % 360) + 360) % 360;
+        object.rotation.y = currentRotation * Math.PI / 180;
+        updateUI();
+    }
+}
+
+// Поворот выбранного объекта вправо (для мобильных)
+function rotateSelectedRight() {
+    if (selectedObjects.length === 1) {
+        const object = selectedObjects[0];
+        let currentRotation = object.rotation.y * 180 / Math.PI;
+        currentRotation += 45;
+        currentRotation = ((currentRotation % 360) + 360) % 360;
+        object.rotation.y = currentRotation * Math.PI / 180;
+        updateUI();
+    }
+}
+
 // Проверка пересечений перекидок
 function checkPassIntersections() {
     // Удаляем старые маркеры пересечений
@@ -1378,33 +1370,21 @@ function updateScenarioGallery() {
     });
 }
 
-// Синхронизация полей размеров куба
-function syncCubeSizes() {
-    // Синхронизация с мобильными полями при изменении десктопных
-    document.getElementById('cubeWidth').addEventListener('input', function() {
-        document.getElementById('mobileCubeWidth').value = this.value;
-    });
+// Синхронизация полей
+function syncFields() {
+    // Синхронизация количества реквизита
+    const passCountField = document.getElementById('passCount');
+    const mobilePassCountField = document.getElementById('mobilePassCount');
     
-    document.getElementById('cubeHeight').addEventListener('input', function() {
-        document.getElementById('mobileCubeHeight').value = this.value;
-    });
-    
-    document.getElementById('cubeDepth').addEventListener('input', function() {
-        document.getElementById('mobileCubeDepth').value = this.value;
-    });
-    
-    // Синхронизация с десктопными полями при изменении мобильных
-    document.getElementById('mobileCubeWidth').addEventListener('input', function() {
-        document.getElementById('cubeWidth').value = this.value;
-    });
-    
-    document.getElementById('mobileCubeHeight').addEventListener('input', function() {
-        document.getElementById('cubeHeight').value = this.value;
-    });
-    
-    document.getElementById('mobileCubeDepth').addEventListener('input', function() {
-        document.getElementById('cubeDepth').value = this.value;
-    });
+    if (passCountField && mobilePassCountField) {
+        passCountField.addEventListener('input', function() {
+            mobilePassCountField.value = this.value;
+        });
+        
+        mobilePassCountField.addEventListener('input', function() {
+            passCountField.value = this.value;
+        });
+    }
 }
 
 // Запуск приложения после загрузки DOM
@@ -1413,7 +1393,7 @@ document.addEventListener('DOMContentLoaded', function() {
     updateScenarioGallery();
     detectMobile();
     updateMobileUI();
-    syncCubeSizes();
+    syncFields();
 });
 
 // Переменные для мобильного управления
@@ -1657,4 +1637,12 @@ document.getElementById('instructions-modal').addEventListener('click', function
         toggleInstructions();
     }
 });
+
+// Предотвращение закрытия модального окна при прокрутке на мобильных
+document.getElementById('instructions-modal').addEventListener('touchmove', function(event) {
+    // Разрешаем прокрутку только внутри modal-content
+    if (!event.target.closest('.modal-content')) {
+        event.preventDefault();
+    }
+}, { passive: false });
 
