@@ -15,6 +15,40 @@ let isDraggingObject = false;
 let isDraggingPass = false;
 let draggedObject = null;
 
+// Версия приложения и проверка обновлений
+const APP_VERSION = '2.0.0';
+const CACHE_BUSTER = Date.now();
+
+// Проверка и принудительное обновление
+function checkForUpdates() {
+    const storedVersion = localStorage.getItem('appVersion');
+    const currentVersion = document.querySelector('meta[name="app-version"]')?.content || APP_VERSION;
+    
+    if (storedVersion && storedVersion !== currentVersion) {
+        console.log(`Обновление приложения: ${storedVersion} → ${currentVersion}`);
+        
+        // Очищаем кэш браузера
+        if ('caches' in window) {
+            caches.keys().then(names => {
+                names.forEach(name => {
+                    caches.delete(name);
+                });
+            });
+        }
+        
+        // Принудительная перезагрузка без кэша
+        setTimeout(() => {
+            window.location.reload(true);
+        }, 1000);
+        
+        return true; // Указывает что происходит обновление
+    }
+    
+    // Сохраняем текущую версию
+    localStorage.setItem('appVersion', currentVersion);
+    return false;
+}
+
 // Уникальный ID пользователя для персональных сценариев
 let userId = localStorage.getItem('jugglingUserId');
 if (!userId) {
@@ -1442,15 +1476,58 @@ function syncFields() {
     }
 }
 
+// Регистрация Service Worker
+function registerServiceWorker() {
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/sw.js')
+            .then(registration => {
+                console.log('Service Worker зарегистрирован:', registration);
+                
+                // Проверка обновлений каждые 30 секунд
+                setInterval(() => {
+                    registration.update();
+                }, 30000);
+                
+                // Обработка обновлений
+                registration.addEventListener('updatefound', () => {
+                    const newWorker = registration.installing;
+                    newWorker.addEventListener('statechange', () => {
+                        if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                            // Новая версия доступна
+                            console.log('Новая версия приложения доступна');
+                            
+                            // Автоматическое обновление через 2 секунды
+                            setTimeout(() => {
+                                newWorker.postMessage({ type: 'SKIP_WAITING' });
+                                window.location.reload();
+                            }, 2000);
+                        }
+                    });
+                });
+            })
+            .catch(error => {
+                console.log('Ошибка регистрации Service Worker:', error);
+            });
+    }
+}
+
 // Запуск приложения после загрузки DOM
 document.addEventListener('DOMContentLoaded', function() {
-    init();
-    updateScenarioGallery();
-    detectMobile();
-    updateMobileUI();
-    syncFields();
-    setupPanelScrolling();
-    setupAnimation();
+    // Проверяем обновления перед инициализацией
+    const isUpdating = checkForUpdates();
+    
+    if (!isUpdating) {
+        init();
+        updateScenarioGallery();
+        detectMobile();
+        updateMobileUI();
+        syncFields();
+        setupPanelScrolling();
+        setupAnimation();
+        
+        // Регистрируем Service Worker после инициализации
+        registerServiceWorker();
+    }
 });
 
 // Настройка системы анимации
@@ -2045,6 +2122,55 @@ function updateAnimationSpeed() {
 document.getElementById('instructions-modal').addEventListener('click', function(event) {
     if (event.target === this) {
         toggleInstructions();
+    }
+});
+
+// Функция принудительного обновления
+function forceUpdate() {
+    console.log('Принудительное обновление приложения...');
+    
+    // Очищаем localStorage (кроме пользовательских данных)
+    const userScenarios = localStorage.getItem(`jugglingScenarios_${userId}`);
+    const userIdBackup = localStorage.getItem('jugglingUserId');
+    
+    localStorage.clear();
+    
+    // Восстанавливаем пользовательские данные
+    if (userIdBackup) localStorage.setItem('jugglingUserId', userIdBackup);
+    if (userScenarios) localStorage.setItem(`jugglingScenarios_${userId}`, userScenarios);
+    
+    // Очищаем кэш Service Worker
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistration().then(registration => {
+            if (registration) {
+                registration.unregister().then(() => {
+                    // Очищаем кэш браузера
+                    if ('caches' in window) {
+                        caches.keys().then(names => {
+                            names.forEach(name => caches.delete(name));
+                        });
+                    }
+                    
+                    // Перезагружаем страницу
+                    window.location.reload(true);
+                });
+            }
+        });
+    } else {
+        // Если Service Worker не поддерживается, просто перезагружаем
+        window.location.reload(true);
+    }
+}
+
+// Проверка при фокусе окна (когда пользователь возвращается на вкладку)
+window.addEventListener('focus', () => {
+    checkForUpdates();
+});
+
+// Проверка при изменении видимости страницы
+document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) {
+        checkForUpdates();
     }
 });
 
