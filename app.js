@@ -34,6 +34,13 @@ let pointerStartPos = { x: 0, y: 0 };
 let hasMovedDuringHold = false;
 const MOVEMENT_THRESHOLD = 10; // пикселей - если пользователь сдвинул мышь больше этого, считаем что он хочет повернуть камеру
 
+// Переменные для анимации
+let keyframes = []; // Массив ключевых кадров
+let isAnimating = false;
+let animationSpeed = 1.0;
+let currentKeyframe = 0;
+let animationInterval = null;
+
 // Raycaster для выбора объектов
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
@@ -1083,6 +1090,12 @@ function clearAll() {
     jugglers = [];
     cubes = [];
     passes = [];
+    
+    // Очищаем анимацию
+    stopAnimation();
+    keyframes = [];
+    updateKeyframesList();
+    
     clearSelection();
 }
 
@@ -1169,7 +1182,16 @@ function saveScenario() {
             count: pass.userData.count,
             color: pass.userData.color,
             height: pass.userData.height
-        }))
+        })),
+        // Добавляем анимацию
+        animation: {
+            keyframes: keyframes.map(keyframe => ({
+                id: keyframe.id,
+                name: keyframe.name,
+                positions: keyframe.positions
+            })),
+            speed: animationSpeed
+        }
     };
     
     // Сохраняем в localStorage с уникальным ключом для пользователя
@@ -1312,6 +1334,27 @@ function loadScenario(scenarioName) {
         }
     });
     
+    // Загружаем анимацию если она есть
+    if (scenario.animation) {
+        keyframes = scenario.animation.keyframes || [];
+        animationSpeed = scenario.animation.speed || 1.0;
+        
+        // Обновляем слайдер скорости
+        const speedSlider = document.getElementById('animationSpeed');
+        if (speedSlider) {
+            speedSlider.value = animationSpeed;
+            updateAnimationSpeed();
+        }
+        
+        // Обновляем список кадров
+        updateKeyframesList();
+    } else {
+        // Очищаем анимацию если её нет в сценарии
+        keyframes = [];
+        animationSpeed = 1.0;
+        updateKeyframesList();
+    }
+    
     // Проверяем пересечения
     checkPassIntersections();
     
@@ -1407,7 +1450,17 @@ document.addEventListener('DOMContentLoaded', function() {
     updateMobileUI();
     syncFields();
     setupPanelScrolling();
+    setupAnimation();
 });
+
+// Настройка системы анимации
+function setupAnimation() {
+    const speedSlider = document.getElementById('animationSpeed');
+    if (speedSlider) {
+        speedSlider.addEventListener('input', updateAnimationSpeed);
+        updateAnimationSpeed(); // Инициализация
+    }
+}
 
 // Настройка прокрутки для панелей
 function setupPanelScrolling() {
@@ -1691,6 +1744,301 @@ function importScenarios() {
     };
     
     input.click();
+}
+
+// Система анимации
+function addKeyframe() {
+    if (jugglers.length === 0) {
+        alert('Добавьте жонглёров для создания анимации');
+        return;
+    }
+    
+    const keyframe = {
+        id: Date.now(),
+        name: `Кадр ${keyframes.length + 1}`,
+        positions: jugglers.map(juggler => ({
+            x: juggler.position.x,
+            y: juggler.position.y,
+            z: juggler.position.z,
+            rotationY: juggler.rotation.y
+        }))
+    };
+    
+    keyframes.push(keyframe);
+    updateKeyframesList();
+    alert(`Ключевой кадр "${keyframe.name}" добавлен!`);
+}
+
+function clearKeyframes() {
+    if (keyframes.length === 0) return;
+    
+    if (confirm('Удалить все ключевые кадры анимации?')) {
+        keyframes = [];
+        stopAnimation();
+        updateKeyframesList();
+    }
+}
+
+function deleteKeyframe(keyframeId) {
+    keyframes = keyframes.filter(kf => kf.id !== keyframeId);
+    if (keyframes.length === 0) {
+        stopAnimation();
+    }
+    updateKeyframesList();
+}
+
+function updateKeyframesList() {
+    const list = document.getElementById('keyframes-list');
+    if (!list) return;
+    
+    list.innerHTML = '';
+    
+    keyframes.forEach((keyframe, index) => {
+        const item = document.createElement('div');
+        item.className = 'keyframe-item';
+        if (index === currentKeyframe && isAnimating) {
+            item.classList.add('active');
+        }
+        
+        item.innerHTML = `
+            <span onclick="goToKeyframe(${index})" style="cursor: pointer; flex: 1;">${keyframe.name}</span>
+            <button class="keyframe-delete" onclick="deleteKeyframe(${keyframe.id})">×</button>
+        `;
+        
+        list.appendChild(item);
+    });
+}
+
+// Переход к определенному ключевому кадру
+function goToKeyframe(index) {
+    if (index < 0 || index >= keyframes.length) return;
+    
+    // Если анимация запущена, не позволяем ручной переход
+    if (isAnimating) {
+        return;
+    }
+    
+    const keyframe = keyframes[index];
+    
+    // Перемещаем жонглёров к позициям этого кадра
+    jugglers.forEach((juggler, jugglerIndex) => {
+        if (keyframe.positions[jugglerIndex]) {
+            const pos = keyframe.positions[jugglerIndex];
+            juggler.position.set(pos.x, pos.y, pos.z);
+            juggler.rotation.y = pos.rotationY;
+        }
+    });
+    
+    // Обновляем перекидки
+    updatePasses();
+    
+    // Показываем какой кадр активен
+    currentKeyframe = index;
+    updateKeyframesList();
+    
+    // Сбрасываем через секунду
+    setTimeout(() => {
+        if (!isAnimating) {
+            currentKeyframe = 0;
+            updateKeyframesList();
+        }
+    }, 1000);
+}
+
+function toggleAnimation() {
+    if (keyframes.length < 2) {
+        alert('Добавьте минимум 2 ключевых кадра для анимации');
+        return;
+    }
+    
+    if (isAnimating) {
+        stopAnimation();
+    } else {
+        startAnimation();
+    }
+}
+
+function startAnimation() {
+    if (keyframes.length < 2) return;
+    
+    isAnimating = true;
+    currentKeyframe = 0;
+    
+    // Обновляем кнопки
+    const desktopBtn = document.getElementById('animation-toggle');
+    const mobileBtn = document.getElementById('mobile-animation-toggle');
+    
+    if (desktopBtn) {
+        desktopBtn.textContent = '⏸ Остановить анимацию';
+        desktopBtn.style.background = '#f44336';
+    }
+    if (mobileBtn) {
+        mobileBtn.textContent = '⏸ Стоп';
+        mobileBtn.classList.add('active');
+    }
+    
+    // Мгновенно перемещаем всех жонглёров к позициям первого ключевого кадра
+    const firstKeyframe = keyframes[0];
+    jugglers.forEach((juggler, index) => {
+        if (firstKeyframe.positions[index]) {
+            const pos = firstKeyframe.positions[index];
+            juggler.position.set(pos.x, pos.y, pos.z);
+            juggler.rotation.y = pos.rotationY;
+        }
+    });
+    
+    // Обновляем перекидки после мгновенного перемещения
+    updatePasses();
+    
+    // Добавляем CSS класс для плавных переходов (только после мгновенного перемещения)
+    jugglers.forEach(juggler => {
+        juggler.traverse(child => {
+            if (child.isMesh) {
+                child.classList?.add('juggler-animated');
+            }
+        });
+    });
+    
+    // Переходим ко второму кадру (индекс 1)
+    currentKeyframe = 1;
+    
+    // Небольшая задержка перед началом анимации к следующему кадру
+    setTimeout(() => {
+        if (isAnimating) {
+            animateToNextKeyframe();
+        }
+    }, 500); // 500ms задержка для показа первого кадра
+}
+
+function stopAnimation() {
+    isAnimating = false;
+    currentKeyframe = 0;
+    
+    if (animationInterval) {
+        clearTimeout(animationInterval);
+        animationInterval = null;
+    }
+    
+    // Обновляем кнопки
+    const desktopBtn = document.getElementById('animation-toggle');
+    const mobileBtn = document.getElementById('mobile-animation-toggle');
+    
+    if (desktopBtn) {
+        desktopBtn.textContent = '▶ Запустить анимацию';
+        desktopBtn.style.background = '#4CAF50';
+    }
+    if (mobileBtn) {
+        mobileBtn.textContent = '▶ Анимация';
+        mobileBtn.classList.remove('active');
+    }
+    
+    // Убираем CSS класс переходов
+    jugglers.forEach(juggler => {
+        juggler.traverse(child => {
+            if (child.isMesh) {
+                child.classList?.remove('juggler-animated');
+            }
+        });
+    });
+    
+    updateKeyframesList();
+}
+
+function animateToNextKeyframe() {
+    if (!isAnimating || keyframes.length === 0) return;
+    
+    const keyframe = keyframes[currentKeyframe];
+    
+    // Анимируем жонглёров к позициям ключевого кадра
+    jugglers.forEach((juggler, index) => {
+        if (keyframe.positions[index]) {
+            const targetPos = keyframe.positions[index];
+            
+            // Используем плавную анимацию
+            animateJugglerToPosition(juggler, targetPos);
+        }
+    });
+    
+    updateKeyframesList();
+    
+    // Переход к следующему кадру
+    const duration = 2000 / animationSpeed; // 2 секунды базовая длительность
+    animationInterval = setTimeout(() => {
+        currentKeyframe = (currentKeyframe + 1) % keyframes.length;
+        
+        // Если вернулись к первому кадру, делаем мгновенный переход
+        if (currentKeyframe === 0) {
+            const firstKeyframe = keyframes[0];
+            jugglers.forEach((juggler, index) => {
+                if (firstKeyframe.positions[index]) {
+                    const pos = firstKeyframe.positions[index];
+                    juggler.position.set(pos.x, pos.y, pos.z);
+                    juggler.rotation.y = pos.rotationY;
+                }
+            });
+            updatePasses();
+            
+            // Переходим сразу ко второму кадру
+            currentKeyframe = 1;
+            
+            // Небольшая пауза перед продолжением
+            setTimeout(() => {
+                if (isAnimating) {
+                    animateToNextKeyframe();
+                }
+            }, 500);
+        } else {
+            animateToNextKeyframe();
+        }
+    }, duration);
+}
+
+function animateJugglerToPosition(juggler, targetPos) {
+    const startPos = {
+        x: juggler.position.x,
+        y: juggler.position.y,
+        z: juggler.position.z,
+        rotationY: juggler.rotation.y
+    };
+    
+    const duration = 1500 / animationSpeed;
+    const startTime = Date.now();
+    
+    function animate() {
+        const elapsed = Date.now() - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        
+        // Easing function (ease-in-out)
+        const easeProgress = progress < 0.5 
+            ? 2 * progress * progress 
+            : 1 - Math.pow(-2 * progress + 2, 3) / 2;
+        
+        // Интерполяция позиции
+        juggler.position.x = startPos.x + (targetPos.x - startPos.x) * easeProgress;
+        juggler.position.y = startPos.y + (targetPos.y - startPos.y) * easeProgress;
+        juggler.position.z = startPos.z + (targetPos.z - startPos.z) * easeProgress;
+        juggler.rotation.y = startPos.rotationY + (targetPos.rotationY - startPos.rotationY) * easeProgress;
+        
+        // Обновляем перекидки
+        updatePasses();
+        
+        if (progress < 1 && isAnimating) {
+            requestAnimationFrame(animate);
+        }
+    }
+    
+    animate();
+}
+
+// Обновление скорости анимации
+function updateAnimationSpeed() {
+    const speedSlider = document.getElementById('animationSpeed');
+    const speedValue = document.getElementById('speedValue');
+    
+    if (speedSlider && speedValue) {
+        animationSpeed = parseFloat(speedSlider.value);
+        speedValue.textContent = animationSpeed.toFixed(1) + 'x';
+    }
 }
 
 // Закрытие модального окна при клике вне его

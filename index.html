@@ -600,6 +600,56 @@
         .scenario-delete:hover {
             background: #d32f2f;
         }
+
+        /* Стили для анимации */
+        .keyframes-list {
+            max-height: 200px;
+            overflow-y: auto;
+            margin-top: 10px;
+        }
+
+        .keyframe-item {
+            background: #333;
+            border: 1px solid #555;
+            border-radius: 4px;
+            padding: 8px;
+            margin: 5px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12px;
+        }
+
+        .keyframe-item.active {
+            border-color: #4CAF50;
+            background: #2d4a2d;
+        }
+
+        .keyframe-delete {
+            background: #f44336;
+            color: white;
+            border: none;
+            border-radius: 3px;
+            width: 20px;
+            height: 20px;
+            font-size: 10px;
+            cursor: pointer;
+        }
+
+        .keyframe-delete:hover {
+            background: #d32f2f;
+        }
+
+        #speedValue {
+            font-size: 12px;
+            color: #4CAF50;
+            margin-left: 5px;
+        }
+
+        /* Анимированные жонглёры */
+        .juggler-animated {
+            transition: all 0.5s ease-in-out;
+        }
     </style>
 </head>
 
@@ -656,6 +706,11 @@
                     <button class="mobile-button" onclick="rotateSelectedLeft()">↺ Повернуть</button>
                     <button class="mobile-button" onclick="rotateSelectedRight()">↻ Повернуть</button>
                 </div>
+                <div class="mobile-button-row">
+                    <button class="mobile-button" id="mobile-animation-toggle" onclick="toggleAnimation()">▶
+                        Анимация</button>
+                    <button class="mobile-button" onclick="addKeyframe()">📍 Кадр</button>
+                </div>
             </div>
         </div>
 
@@ -688,6 +743,21 @@
                 <button class="button" onclick="clearSelection()">Снять выделение</button>
                 <button class="button" onclick="deleteSelected()">Удалить выбранное</button>
                 <button class="button" onclick="clearAll()">Очистить всё</button>
+            </div>
+
+            <div class="section">
+                <h3>Анимация</h3>
+                <div class="control-group">
+                    <label>Скорость анимации:</label>
+                    <input type="range" id="animationSpeed" min="0.5" max="3" step="0.1" value="1">
+                    <span id="speedValue">1.0x</span>
+                </div>
+                <button class="button" id="animation-toggle" onclick="toggleAnimation()">▶ Запустить анимацию</button>
+                <button class="button" onclick="addKeyframe()">📍 Добавить ключевой кадр</button>
+                <button class="button" onclick="clearKeyframes()">🗑️ Очистить анимацию</button>
+                <div id="keyframes-list" class="keyframes-list">
+                    <!-- Список ключевых кадров будет здесь -->
+                </div>
             </div>
 
             <div class="section">
@@ -758,10 +828,30 @@
             <div class="instructions-section">
                 <h3>💾 Сценарии</h3>
                 <ul>
-                    <li><strong>Сохранение:</strong> Введите название → "Сохранить сценарий"</li>
+                    <li><strong>Сохранение:</strong> Введите название → "Сохранить сценарий" (включает анимацию)</li>
                     <li><strong>Загрузка:</strong> Кликните по миниатюре в левой панели</li>
                     <li><strong>Удаление:</strong> Нажмите "×" на миниатюре сценария</li>
                     <li><strong>Автоскриншот:</strong> При сохранении создается миниатюра сцены</li>
+                    <li><strong>Анимация в сценариях:</strong> Ключевые кадры и настройки скорости сохраняются
+                        автоматически</li>
+                </ul>
+            </div>
+
+            <div class="instructions-section">
+                <h3>🎬 Анимация переходов</h3>
+                <ul>
+                    <li><strong>Создание кадров:</strong> Расставьте жонглёров → кнопка "📍 Добавить ключевой кадр"</li>
+                    <li><strong>Запуск анимации:</strong> Минимум 2 кадра → кнопка "▶ Запустить анимацию"</li>
+                    <li><strong>Автопозиционирование:</strong> При запуске жонглёры мгновенно перемещаются к первому
+                        кадру</li>
+                    <li><strong>Скорость:</strong> Настройте слайдером скорости (0.5x - 3.0x)</li>
+                    <li><strong>Переход к кадру:</strong> Кликните по названию кадра в списке (только при остановленной
+                        анимации)</li>
+                    <li><strong>Циклическое воспроизведение:</strong> Анимация повторяется автоматически с мгновенным
+                        возвратом к первому кадру</li>
+                    <li><strong>Остановка:</strong> Кнопка "⏸ Остановить анимацию"</li>
+                    <li><strong>Удаление кадров:</strong> Кнопка "×" рядом с кадром или "🗑️ Очистить анимацию"</li>
+                    <li><strong>Сохранение:</strong> Анимация автоматически сохраняется в сценарии</li>
                 </ul>
             </div>
 
@@ -770,7 +860,8 @@
                 <ul>
                     <li><strong>Панели:</strong> Используйте кнопки 📁 и 🔧 для открытия панелей</li>
                     <li><strong>Быстрые действия:</strong> Кнопки внизу экрана для основных операций</li>
-                    <li><strong>Касания:</strong> Одиночное касание для выделения, двойное для перемещения</li>
+                    <li><strong>Анимация:</strong> Кнопки "▶ Анимация" и "📍 Кадр" в нижней панели</li>
+                    <li><strong>Касания:</strong> Касание для выделения, долгое касание для перемещения</li>
                     <li><strong>Жесты:</strong> Пинч для масштабирования, свайп для поворота камеры</li>
                 </ul>
             </div>
