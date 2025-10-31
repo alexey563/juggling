@@ -712,8 +712,10 @@
                     <button class="mobile-button" onclick="clearAll()">Очистить всё</button>
                 </div>
                 <div class="mobile-button-row">
-                    <button class="mobile-button" onclick="rotateSelectedLeft()">↺ Повернуть</button>
-                    <button class="mobile-button" onclick="rotateSelectedRight()">↻ Повернуть</button>
+                    <button class="mobile-button" onclick="rotateSelectedLeft('y')">↺ Y</button>
+                    <button class="mobile-button" onclick="rotateSelectedRight('y')">↻ Y</button>
+                    <button class="mobile-button" onclick="rotateSelectedLeft('x')">↺ X</button>
+                    <button class="mobile-button" onclick="rotateSelectedRight('x')">↻ X</button>
                 </div>
                 <div class="mobile-button-row">
                     <button class="mobile-button" id="mobile-animation-toggle" onclick="toggleAnimation()">▶
@@ -783,8 +785,12 @@
             <div class="controls">
                 <h3>Выбранный объект</h3>
                 <div class="control-group">
-                    <label>Поворот (градусы):</label>
-                    <input type="number" id="rotation" step="45" onchange="updateSelectedRotation()">
+                    <label>Поворот Y (градусы):</label>
+                    <input type="number" id="rotationY" step="45" onchange="updateSelectedRotation()">
+                </div>
+                <div class="control-group">
+                    <label>Поворот X (градусы):</label>
+                    <input type="number" id="rotationX" step="45" onchange="updateSelectedRotation()">
                 </div>
 
             </div>
@@ -827,8 +833,13 @@
                     <li><strong>Перемещение:</strong> Зажмите объект на 800ms без движения мыши → объект станет
                         полупрозрачным → перемещайте → отпустите</li>
                     <li><strong>Поворот камеры:</strong> Зажмите объект + сразу двигайте мышь (для поворота камеры)</li>
-                    <li><strong>Поворот объекта:</strong> ПК - колесо мыши при перемещении; Мобильный - кнопки "↺
-                        Повернуть"</li>
+                    <li><strong>Поворот объекта:</strong>
+                        <ul>
+                            <li>ПК: колесо мыши при перемещении (Y-ось), Shift+колесо (X-ось)</li>
+                            <li>Мобильный: кнопки "↺ Y", "↻ Y", "↺ X", "↻ X"</li>
+                            <li>Панель управления: поля "Поворот Y/X (градусы)" для точного ввода</li>
+                        </ul>
+                    </li>
                     <li><strong>Размещение:</strong> Объекты можно ставить друг на друга, система автоматически найдет
                         правильную высоту</li>
                     <li><strong>Удаление:</strong> Выделите объект → кнопка "Удалить выбранное"</li>
@@ -909,7 +920,8 @@
                     <li><strong>Касания:</strong> Короткое касание для выделения, долгое касание (800ms) для перемещения
                     </li>
                     <li><strong>Жесты:</strong> Пинч для масштабирования, свайп для поворота камеры</li>
-                    <li><strong>Поворот объектов:</strong> Кнопки "↺ Повернуть" и "↻ Повернуть" в нижней панели</li>
+                    <li><strong>Поворот объектов:</strong> Кнопки "↺ Y", "↻ Y", "↺ X", "↻ X" в нижней панели для
+                        поворота по двум осям</li>
                 </ul>
             </div>
         </div>

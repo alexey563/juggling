@@ -704,11 +704,17 @@ function onMouseWheel(event) {
     if (isDraggingObject && draggedObject) {
         event.preventDefault();
 
+        // Определяем ось поворота по клавишам-модификаторам
+        let axis = 'y'; // По умолчанию поворот по оси Y
+        if (event.shiftKey) {
+            axis = 'x'; // Shift + колесо = поворот по оси X
+        }
+
         // Поворот объекта на 45 градусов при перетаскивании
         const direction = event.deltaY > 0 ? 1 : -1;
 
-        // Получаем текущий поворот в градусах
-        let currentRotationDegrees = draggedObject.rotation.y * 180 / Math.PI;
+        // Получаем текущий поворот в градусах для выбранной оси
+        let currentRotationDegrees = draggedObject.rotation[axis] * 180 / Math.PI;
 
         // Добавляем 45 градусов в нужном направлении
         currentRotationDegrees += direction * 45;
@@ -716,8 +722,8 @@ function onMouseWheel(event) {
         // Нормализуем к диапазону 0-360 градусов
         currentRotationDegrees = ((currentRotationDegrees % 360) + 360) % 360;
 
-        // Устанавливаем новый поворот
-        draggedObject.rotation.y = currentRotationDegrees * Math.PI / 180;
+        // Устанавливаем новый поворот для выбранной оси
+        draggedObject.rotation[axis] = currentRotationDegrees * Math.PI / 180;
 
         // Обновляем UI
         updateUI();
@@ -994,13 +1000,21 @@ function clearSelection() {
 function updateUI() {
     if (selectedObjects.length === 1) {
         const object = selectedObjects[0];
-        let degrees = object.rotation.y * 180 / Math.PI;
-        // Нормализуем к диапазону 0-360 и округляем до ближайшего кратного 45
-        degrees = ((degrees % 360) + 360) % 360;
-        degrees = Math.round(degrees / 45) * 45;
-        document.getElementById('rotation').value = degrees;
+        
+        // Обновляем поворот по оси Y
+        let degreesY = object.rotation.y * 180 / Math.PI;
+        degreesY = ((degreesY % 360) + 360) % 360;
+        degreesY = Math.round(degreesY / 45) * 45;
+        document.getElementById('rotationY').value = degreesY;
+        
+        // Обновляем поворот по оси X
+        let degreesX = object.rotation.x * 180 / Math.PI;
+        degreesX = ((degreesX % 360) + 360) % 360;
+        degreesX = Math.round(degreesX / 45) * 45;
+        document.getElementById('rotationX').value = degreesX;
     } else {
-        document.getElementById('rotation').value = '';
+        document.getElementById('rotationY').value = '';
+        document.getElementById('rotationX').value = '';
     }
 }
 
@@ -1010,37 +1024,43 @@ function updateUI() {
 function updateSelectedRotation() {
     if (selectedObjects.length === 1) {
         const object = selectedObjects[0];
-        let rotation = parseFloat(document.getElementById('rotation').value) || 0;
-        // Округляем до ближайшего кратного 45
-        rotation = Math.round(rotation / 45) * 45;
-        // Нормализуем к диапазону 0-360
-        rotation = ((rotation % 360) + 360) % 360;
-        object.rotation.y = rotation * Math.PI / 180;
-        // Обновляем поле ввода с нормализованным значением
-        document.getElementById('rotation').value = rotation;
+        
+        // Обновляем поворот по оси Y
+        let rotationY = parseFloat(document.getElementById('rotationY').value) || 0;
+        rotationY = Math.round(rotationY / 45) * 45;
+        rotationY = ((rotationY % 360) + 360) % 360;
+        object.rotation.y = rotationY * Math.PI / 180;
+        document.getElementById('rotationY').value = rotationY;
+        
+        // Обновляем поворот по оси X
+        let rotationX = parseFloat(document.getElementById('rotationX').value) || 0;
+        rotationX = Math.round(rotationX / 45) * 45;
+        rotationX = ((rotationX % 360) + 360) % 360;
+        object.rotation.x = rotationX * Math.PI / 180;
+        document.getElementById('rotationX').value = rotationX;
     }
 }
 
 // Поворот выбранного объекта влево (для мобильных)
-function rotateSelectedLeft() {
+function rotateSelectedLeft(axis = 'y') {
     if (selectedObjects.length === 1) {
         const object = selectedObjects[0];
-        let currentRotation = object.rotation.y * 180 / Math.PI;
+        let currentRotation = object.rotation[axis] * 180 / Math.PI;
         currentRotation -= 45;
         currentRotation = ((currentRotation % 360) + 360) % 360;
-        object.rotation.y = currentRotation * Math.PI / 180;
+        object.rotation[axis] = currentRotation * Math.PI / 180;
         updateUI();
     }
 }
 
 // Поворот выбранного объекта вправо (для мобильных)
-function rotateSelectedRight() {
+function rotateSelectedRight(axis = 'y') {
     if (selectedObjects.length === 1) {
         const object = selectedObjects[0];
-        let currentRotation = object.rotation.y * 180 / Math.PI;
+        let currentRotation = object.rotation[axis] * 180 / Math.PI;
         currentRotation += 45;
         currentRotation = ((currentRotation % 360) + 360) % 360;
-        object.rotation.y = currentRotation * Math.PI / 180;
+        object.rotation[axis] = currentRotation * Math.PI / 180;
         updateUI();
     }
 }
@@ -1920,6 +1940,7 @@ function addKeyframe() {
                 x: juggler.position.x,
                 y: juggler.position.y,
                 z: juggler.position.z,
+                rotationX: juggler.rotation.x,
                 rotationY: juggler.rotation.y,
                 visible: juggler.visible
             })),
@@ -2038,6 +2059,7 @@ function updateCurrentKeyframe() {
                 x: juggler.position.x,
                 y: juggler.position.y,
                 z: juggler.position.z,
+                rotationX: juggler.rotation.x,
                 rotationY: juggler.rotation.y,
                 visible: juggler.visible
             })),
@@ -2208,7 +2230,11 @@ function applyNewKeyframeState(keyframe) {
         const juggler = createJuggler();
         juggler.userData.id = jugglerData.id;
         juggler.position.set(jugglerData.x, jugglerData.y, jugglerData.z);
-        juggler.rotation.y = jugglerData.rotationY;
+        juggler.rotation.set(
+            jugglerData.rotationX || 0,
+            jugglerData.rotationY || 0,
+            0
+        );
         scene.add(juggler);
         jugglers.push(juggler);
     });
@@ -2241,7 +2267,11 @@ function applyOldKeyframeState(keyframe) {
         if (keyframe.positions[index]) {
             const pos = keyframe.positions[index];
             juggler.position.set(pos.x, pos.y, pos.z);
-            juggler.rotation.y = pos.rotationY;
+            juggler.rotation.set(
+                pos.rotationX || 0,
+                pos.rotationY || 0,
+                0
+            );
         }
     });
 
@@ -2284,7 +2314,11 @@ function animateToNewKeyframeState(keyframe) {
             juggler = createJuggler();
             juggler.userData.id = jugglerData.id;
             juggler.position.set(jugglerData.x, jugglerData.y, jugglerData.z);
-            juggler.rotation.y = jugglerData.rotationY;
+            juggler.rotation.set(
+                jugglerData.rotationX || 0,
+                jugglerData.rotationY || 0,
+                0
+            );
             scene.add(juggler);
             jugglers.push(juggler);
         } else {
@@ -2405,6 +2439,7 @@ function animateJugglerToPosition(juggler, targetPos) {
         x: juggler.position.x,
         y: juggler.position.y,
         z: juggler.position.z,
+        rotationX: juggler.rotation.x,
         rotationY: juggler.rotation.y
     };
 
@@ -2424,7 +2459,8 @@ function animateJugglerToPosition(juggler, targetPos) {
         juggler.position.x = startPos.x + (targetPos.x - startPos.x) * easeProgress;
         juggler.position.y = startPos.y + (targetPos.y - startPos.y) * easeProgress;
         juggler.position.z = startPos.z + (targetPos.z - startPos.z) * easeProgress;
-        juggler.rotation.y = startPos.rotationY + (targetPos.rotationY - startPos.rotationY) * easeProgress;
+        juggler.rotation.x = startPos.rotationX + ((targetPos.rotationX || 0) - startPos.rotationX) * easeProgress;
+        juggler.rotation.y = startPos.rotationY + ((targetPos.rotationY || 0) - startPos.rotationY) * easeProgress;
 
         // Обновляем перекидки
         updatePasses();
