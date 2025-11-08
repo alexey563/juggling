@@ -810,8 +810,29 @@ function migrateToFolderStructure() {
 }
 
 function createFolder() {
-    const folderName = prompt('Введите название папки:');
-    if (!folderName || folderName.trim() === '') return;
+    const modal = document.getElementById('create-folder-modal');
+    if (modal) {
+        document.getElementById('new-folder-name-input').value = ''; // Clear previous input
+        modal.style.display = 'flex';
+        document.getElementById('new-folder-name-input').focus(); // Focus the input
+    }
+}
+
+function closeCreateFolderModal() {
+    const modal = document.getElementById('create-folder-modal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+}
+
+function executeCreateFolder() {
+    const folderNameInput = document.getElementById('new-folder-name-input');
+    const folderName = folderNameInput.value.trim();
+
+    if (!folderName) {
+        alert('Введите название папки.');
+        return;
+    }
 
     const data = getScenariosData();
     const currentItems = data.structure[currentPath] || [];
@@ -825,6 +846,7 @@ function createFolder() {
     data.structure[`${currentPath}${folderName}/`] = []; // Create new empty folder
     saveScenariosData(data);
     updateScenarioGallery();
+    closeCreateFolderModal();
 }
 
 function saveScenario() {
