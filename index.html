@@ -715,6 +715,149 @@
             background: #4a4a4a;
         }
 
+        /* New Generic Modal Styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8); /* Darker overlay */
+            backdrop-filter: blur(5px); /* Frosted glass effect */
+            -webkit-backdrop-filter: blur(5px);
+            z-index: 2500;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .modal-container {
+            background: #333; /* Slightly lighter than sidebar */
+            color: white;
+            padding: 25px;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 500px; /* Default max-width */
+            border: 1px solid #555;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            animation: slideIn 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            position: relative;
+        }
+
+        .modal-container h4 {
+            margin: 0 0 20px 0;
+            color: #4CAF50;
+            font-size: 20px;
+            border-bottom: 1px solid #444;
+            padding-bottom: 15px;
+        }
+
+        .modal-container .modal-close {
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            background: none;
+            border: none;
+            color: #aaa;
+            font-size: 24px;
+            cursor: pointer;
+            transition: color 0.2s;
+            padding: 5px;
+            line-height: 1;
+        }
+        .modal-container .modal-close:hover {
+            color: white;
+        }
+
+        /* Primary/Secondary button styles within modals */
+        .modal-button-row .button {
+            flex: 1; /* Make buttons in a row take equal space */
+        }
+        .button.button-primary {
+            background: #4CAF50;
+        }
+        .button.button-primary:hover {
+            background: #45a049;
+        }
+        .button.button-secondary {
+            background: #555;
+        }
+        .button.button-secondary:hover {
+            background: #666;
+        }
+
+        /* Status styles for modals */
+        .modal-container.status-success {
+            border-color: #4CAF50;
+            box-shadow: 0 0 20px rgba(76, 175, 80, 0.5);
+        }
+        .modal-container.status-error {
+            border-color: #f44336;
+            box-shadow: 0 0 20px rgba(244, 67, 54, 0.5);
+        }
+        .modal-container.status-warning {
+            border-color: #ffeb3b;
+            box-shadow: 0 0 20px rgba(255, 235, 59, 0.5);
+        }
+
+        /* Keyframe animations for modals */
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        @keyframes slideIn {
+            from { transform: translateY(-30px) scale(0.95); opacity: 0; }
+            to { transform: translateY(0) scale(1); opacity: 1; }
+        }
+
+
+        .custom-input-style {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #555;
+            background: #333;
+            color: white;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        .modal-button-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .export-list {
+            list-style: none;
+            padding: 0;
+            margin-top: 10px;
+            max-height: 400px;
+            overflow-y: auto;
+            text-align: left;
+            border: 1px solid #555;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .export-item {
+            padding: 5px 0;
+        }
+        .export-item label {
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+        }
+        .export-item input {
+            margin-right: 10px;
+        }
+        .export-item--folder {
+            font-weight: bold;
+        }
+        .export-item-children {
+            padding-left: 25px;
+        }
+
         /* Стили для анимации */
         .keyframes-list {
             max-height: 200px;
@@ -1034,13 +1177,44 @@
     </div>
 
     <!-- Modal for moving scenarios -->
-    <div id="move-folder-modal" class="move-modal">
-        <div class="move-modal-content">
-            <button class="move-modal-close" onclick="closeMoveToFolderModal()">&times;</button>
-            <h4>Выберите папку для перемещения</h4>
+    <div id="move-folder-modal" class="modal-overlay">
+        <div class="modal-container" style="max-width: 350px;">
+            <button class="modal-close" onclick="closeMoveToFolderModal()">&times;</button>
+            <h4>Выберите папку</h4>
             <ul id="move-folder-list">
                 <!-- Folder list will be populated here -->
             </ul>
+        </div>
+    </div>
+
+    <!-- Modal for Exporting Scenarios -->
+    <div id="export-modal" class="modal-overlay">
+        <div class="modal-container">
+            <button class="modal-close" onclick="closeExportModal()">&times;</button>
+            <h4>Выберите, что экспортировать</h4>
+            <div class="modal-button-row">
+                <button class="button" onclick="selectAllForExport(true)">Выбрать все</button>
+                <button class="button" onclick="selectAllForExport(false)">Снять выделение</button>
+            </div>
+            <div id="export-item-list" class="export-list">
+                <!-- Tree structure will be populated here -->
+            </div>
+            <div class="modal-button-row">
+                 <button class="button button-primary" onclick="executeExport()">Экспортировать</button>
+                 <button class="button button-secondary" onclick="closeExportModal()">Отмена</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Generic Modal for Alerts, Confirms, Prompts -->
+    <div id="generic-modal" class="modal-overlay">
+        <div id="generic-modal-container" class="modal-container">
+            <h4 id="generic-modal-title"></h4>
+            <p id="generic-modal-message"></p>
+            <input type="text" id="generic-modal-input" class="custom-input-style" style="display: none;">
+            <div id="generic-modal-buttons" class="modal-button-row">
+                <!-- Buttons will be dynamically added here -->
+            </div>
         </div>
     </div>
 

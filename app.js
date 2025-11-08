@@ -810,27 +810,39 @@ function migrateToFolderStructure() {
 }
 
 function createFolder() {
-    const folderName = prompt('Введите название папки:');
-    if (!folderName || folderName.trim() === '') return;
+    showModal({
+        title: 'Создать новую папку',
+        type: 'prompt',
+        placeholder: 'Название папки',
+        onConfirm: (folderName) => {
+            if (!folderName || folderName.trim() === '') {
+                showModal({ title: 'Ошибка', message: 'Название папки не может быть пустым.', status: 'error' });
+                return;
+            }
 
-    const data = getScenariosData();
-    const currentItems = data.structure[currentPath] || [];
+            folderName = folderName.trim();
+            const data = getScenariosData();
+            const currentItems = data.structure[currentPath] || [];
 
-    if (currentItems.some(item => item.name === folderName)) {
-        alert('Папка или сценарий с таким именем уже существует.');
-        return;
-    }
+            if (currentItems.some(item => item.name === folderName)) {
+                showModal({ title: 'Ошибка', message: `Имя "${folderName}" уже занято в этой директории.`, status: 'error' });
+                return;
+            }
 
-    data.structure[currentPath].push({ type: 'folder', name: folderName });
-    data.structure[`${currentPath}${folderName}/`] = []; // Create new empty folder
-    saveScenariosData(data);
-    updateScenarioGallery();
+            data.structure[currentPath].push({ type: 'folder', name: folderName });
+            data.structure[`${currentPath}${folderName}/`] = [];
+            saveScenariosData(data);
+            updateScenarioGallery();
+            
+            showModal({ title: 'Успех', message: `Папка "${folderName}" создана.`, status: 'success' });
+        }
+    });
 }
 
 function saveScenario() {
     const scenarioName = document.getElementById('scenarioName').value.trim();
     if (!scenarioName) {
-        alert('Пожалуйста, введите название сценария');
+        showModal({ title: 'Ошибка', message: 'Пожалуйста, введите название сценария.', status: 'error' });
         return;
     }
 
@@ -838,53 +850,61 @@ function saveScenario() {
     const currentItems = data.structure[currentPath] || [];
     const existingItem = currentItems.find(item => item.name === scenarioName);
 
-    if (existingItem) {
-        if (existingItem.type === 'folder') {
-            alert(`Имя "${scenarioName}" уже занято папкой в этой директории.`);
-            return;
-        }
-        // If it's a scenario, the name is taken. Ask to overwrite.
-        if (!confirm(`Сценарий "${scenarioName}" уже существует. Перезаписать?`)) {
-            return;
-        }
-    }
+    const performSave = () => {
+        const thumbnail = captureSceneThumbnail();
+        const scenario = {
+            name: scenarioName,
+            userId: userId,
+            timestamp: new Date().toISOString(),
+            thumbnail: thumbnail,
+            jugglers: jugglers.map(j => ({ id: j.userData.id, position: j.position, rotation: j.rotation })),
+            cubes: cubes.map(c => ({ id: c.userData.id, position: c.position, rotation: c.rotation, dimensions: { width: c.userData.width, height: c.userData.height, depth: c.userData.depth } })),
+            passes: passes.map(p => ({ id: p.userData.id, juggler1Id: p.userData.juggler1.userData.id, juggler2Id: p.userData.juggler2.userData.id, count: p.userData.count, color: p.userData.color, height: p.userData.height })),
+            animation: { keyframes: keyframes.map(kf => ({ id: kf.id, name: kf.name, objects: kf.objects, positions: kf.positions })), speed: animationSpeed }
+        };
 
-    // If we are here, it's either a new name or an overwrite confirmation was given.
+        data.scenarios[scenarioName] = scenario;
 
-    const thumbnail = captureSceneThumbnail();
-    const scenario = {
-        name: scenarioName,
-        userId: userId,
-        timestamp: new Date().toISOString(),
-        thumbnail: thumbnail,
-        jugglers: jugglers.map(j => ({ id: j.userData.id, position: j.position, rotation: j.rotation })),
-        cubes: cubes.map(c => ({ id: c.userData.id, position: c.position, rotation: c.rotation, dimensions: { width: c.userData.width, height: c.userData.height, depth: c.userData.depth } })),
-        passes: passes.map(p => ({ id: p.userData.id, juggler1Id: p.userData.juggler1.userData.id, juggler2Id: p.userData.juggler2.userData.id, count: p.userData.count, color: p.userData.color, height: p.userData.height })),
-        animation: { keyframes: keyframes.map(kf => ({ id: kf.id, name: kf.name, objects: kf.objects, positions: kf.positions })), speed: animationSpeed }
+        if (!existingItem) {
+            data.structure[currentPath].push({ type: 'scenario', name: scenarioName });
+        }
+
+        saveScenariosData(data);
+        updateScenarioGallery();
+        document.getElementById('scenarioName').value = '';
+        showModal({
+            title: 'Успех',
+            message: `Сценарий "${scenarioName}" сохранен!`,
+            status: 'success'
+        });
     };
 
-    data.scenarios[scenarioName] = scenario;
-
-    // Add to current folder structure only if it's a new item
-    if (!existingItem) {
-        data.structure[currentPath].push({ type: 'scenario', name: scenarioName });
+    if (existingItem) {
+        if (existingItem.type === 'folder') {
+            showModal({ title: 'Ошибка', message: `Имя "${scenarioName}" уже занято папкой в этой директории.`, status: 'error' });
+            return;
+        }
+        showModal({
+            title: 'Подтверждение',
+            message: `Сценарий "${scenarioName}" уже существует. Перезаписать?`,
+            type: 'confirm',
+            status: 'warning',
+            onConfirm: performSave
+        });
+    } else {
+        performSave();
     }
-
-    saveScenariosData(data);
-    updateScenarioGallery();
-    document.getElementById('scenarioName').value = '';
-    alert(`Сценарий "${scenarioName}" сохранен!`);
 }
 
 function loadScenario(scenarioName) {
     const data = getScenariosData();
     const scenario = data.scenarios[scenarioName];
     if (!scenario) {
-        alert('Сценарий не найден');
+        showModal({ title: 'Ошибка', message: 'Сценарий не найден.', status: 'error' });
         return;
     }
 
-    clearAll();
+    clearAll(true); // Pass true to suppress confirmation
 
     scenario.jugglers.forEach(jData => {
         const juggler = createJuggler();
@@ -927,36 +947,63 @@ function loadScenario(scenarioName) {
     }
 
     checkPassIntersections();
-    alert(`Сценарий "${scenarioName}" загружен!`);
+    showModal({ title: 'Загрузка завершена', message: `Сценарий "${scenarioName}" загружен!`, status: 'success' });
 }
 
-function deleteItem(itemName, itemType, event) {
+function deleteItem(name, type, event) {
     event.stopPropagation();
-    if (!confirm(`Вы уверены, что хотите удалить ${itemType === 'folder' ? 'папку' : 'сценарий'} "${itemName}"?`)) return;
+    const itemType = type === 'folder' ? 'папку' : 'сценарий';
 
-    const data = getScenariosData();
+    const performDelete = () => {
+        let data = getScenariosData();
+        
+        const currentItems = data.structure[currentPath];
+        const itemIndex = currentItems.findIndex(item => item.name === name && item.type === type);
+        if (itemIndex > -1) {
+            currentItems.splice(itemIndex, 1);
+        }
 
-    // Remove from current structure
-    data.structure[currentPath] = data.structure[currentPath].filter(item => item.name !== itemName);
-
-    if (itemType === 'scenario') {
-        delete data.scenarios[itemName];
-    } else if (itemType === 'folder') {
-        // Recursively delete folder contents
-        const folderPath = `${currentPath}${itemName}/`;
-        // This is a simplified deletion. A full implementation would recursively find all scenarios
-        // in all subfolders and delete them from the main `scenarios` object.
-        // For now, we just delete the folder structure entries.
-        Object.keys(data.structure).forEach(path => {
-            if (path.startsWith(folderPath)) {
-                delete data.structure[path];
+        if (type === 'folder') {
+            const folderPath = `${currentPath}${name}/`;
+            
+            const scenariosToDelete = new Set();
+            function findScenariosRecursive(path) {
+                const items = data.structure[path] || [];
+                items.forEach(item => {
+                    if (item.type === 'scenario') {
+                        scenariosToDelete.add(item.name);
+                    } else if (item.type === 'folder') {
+                        findScenariosRecursive(`${path}${item.name}/`);
+                    }
+                });
             }
-        });
-    }
+            
+            findScenariosRecursive(folderPath);
+            scenariosToDelete.forEach(scenarioName => {
+                delete data.scenarios[scenarioName];
+            });
 
-    saveScenariosData(data);
-    updateScenarioGallery();
-    alert(`${itemType === 'folder' ? 'Папка' : 'Сценарий'} "${itemName}" удален(а)!`);
+            const pathsToDelete = Object.keys(data.structure).filter(p => p.startsWith(folderPath));
+            pathsToDelete.forEach(p => {
+                delete data.structure[p];
+            });
+
+        } else { // It's a scenario
+            delete data.scenarios[name];
+        }
+
+        saveScenariosData(data);
+        updateScenarioGallery();
+        showModal({ title: 'Удалено', message: `Элемент "${name}" был удален.`, status: 'success' });
+    };
+
+    showModal({
+        title: 'Подтверждение удаления',
+        message: `Вы уверены, что хотите удалить ${itemType} "${name}"? Это действие необратимо.`,
+        type: 'confirm',
+        status: 'warning',
+        onConfirm: performDelete
+    });
 }
 
 function updateScenarioGallery() {
@@ -1070,7 +1117,7 @@ function moveScenarioToFolder(scenarioName, targetFolderPath) {
     updateScenarioGallery();
     closeMoveToFolderModal();
     const targetFolderName = targetFolderPath === '/' ? 'корень' : targetFolderPath.slice(0, -1).split('/').pop();
-    alert(`Сценарий "${scenarioName}" перемещен в папку "${targetFolderName}".`);
+    showModal({ title: 'Успех', message: `Сценарий "${scenarioName}" перемещен в папку "${targetFolderName}".`, status: 'success' });
 }
 
 function showMoveToFolderModal(scenarioName, event) {
@@ -1118,24 +1165,136 @@ function syncFields() {
     }
 }
 
+// ========================================
+// Service Worker
+// ========================================
 function registerServiceWorker() {
     if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('/sw.js').then(reg => {
             console.log('Service Worker registered:', reg);
-            setInterval(() => reg.update(), 30000);
+            setInterval(() => reg.update(), 30000); // Check for updates every 30s
             reg.onupdatefound = () => {
                 const newWorker = reg.installing;
                 newWorker.onstatechange = () => {
                     if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                        console.log('New version available');
-                        setTimeout(() => {
-                            newWorker.postMessage({ type: 'SKIP_WAITING' });
-                            window.location.reload();
-                        }, 2000);
+                        console.log('New version available, reloading...');
+                        showModal({
+                            title: 'Доступно обновление',
+                            message: 'Приложение было обновлено. Страница сейчас перезагрузится.',
+                            status: 'success',
+                            onConfirm: () => {
+                                newWorker.postMessage({ type: 'SKIP_WAITING' });
+                                window.location.reload();
+                            }
+                        });
                     }
                 };
             };
         }).catch(err => console.log('Service Worker registration error:', err));
+    }
+}
+
+
+// ========================================
+// UI Helpers
+// ========================================
+
+/**
+ * Shows a generic, customizable modal.
+ * @param {object} options - The options for the modal.
+ * @param {string} options.title - The title of the modal.
+ * @param {string} options.message - The message content of the modal.
+ * @param {string} [options.type='alert'] - 'alert', 'confirm', or 'prompt'.
+ * @param {string} [options.status='normal'] - 'normal', 'success', 'error', or 'warning'.
+ * @param {string} [options.placeholder=''] - Placeholder for the prompt input.
+ * @param {function} [options.onConfirm] - Callback for confirm/ok button. Receives input value for prompts.
+ * @param {function} [options.onCancel] - Callback for cancel button.
+ */
+function showModal(options) {
+    const { 
+        title, 
+        message, 
+        type = 'alert',
+        status = 'normal',
+        placeholder = '',
+        onConfirm, 
+        onCancel 
+    } = options;
+
+    const modal = document.getElementById('generic-modal');
+    const container = document.getElementById('generic-modal-container');
+    const titleEl = document.getElementById('generic-modal-title');
+    const messageEl = document.getElementById('generic-modal-message');
+    const inputEl = document.getElementById('generic-modal-input');
+    const buttonsEl = document.getElementById('generic-modal-buttons');
+
+    titleEl.textContent = title;
+    messageEl.textContent = message;
+    buttonsEl.innerHTML = ''; // Clear old buttons
+
+    // Reset status and apply new one
+    container.className = 'modal-container';
+    if (status !== 'normal') {
+        container.classList.add(`status-${status}`);
+    }
+
+    // Configure input for prompt
+    if (type === 'prompt') {
+        inputEl.style.display = 'block';
+        inputEl.value = '';
+        inputEl.placeholder = placeholder;
+    } else {
+        inputEl.style.display = 'none';
+    }
+
+    // --- Create buttons ---
+    const confirmButton = document.createElement('button');
+    confirmButton.className = 'button button-primary';
+    confirmButton.textContent = 'OK';
+    
+    function hide() {
+        modal.style.display = 'none';
+        // Remove status class after hiding animation
+        setTimeout(() => container.className = 'modal-container', 300);
+    }
+
+    const confirmHandler = () => {
+        hide();
+        if (onConfirm) {
+            const value = type === 'prompt' ? inputEl.value : undefined;
+            onConfirm(value);
+        }
+    };
+
+    confirmButton.onclick = confirmHandler;
+    
+    // Add Enter key listener for prompt
+    if (type === 'prompt') {
+        inputEl.onkeydown = (e) => {
+            if (e.key === 'Enter') {
+                confirmHandler();
+            }
+        };
+    } else {
+        inputEl.onkeydown = null;
+    }
+
+    buttonsEl.appendChild(confirmButton);
+
+    if (type === 'confirm' || type === 'prompt') {
+        const cancelButton = document.createElement('button');
+        cancelButton.className = 'button button-secondary';
+        cancelButton.textContent = 'Отмена';
+        cancelButton.onclick = () => {
+            hide();
+            if (onCancel) onCancel();
+        };
+        buttonsEl.appendChild(cancelButton);
+    }
+    
+    modal.style.display = 'flex';
+    if (type === 'prompt') {
+        inputEl.focus();
     }
 }
 
@@ -1305,18 +1464,135 @@ window.addEventListener('orientationchange', () => setTimeout(() => { detectMobi
 document.addEventListener('touchmove', e => { if (e.scale !== 1) e.preventDefault(); }, { passive: false });
 
 function exportScenarios() {
+    populateExportList();
+    document.getElementById('export-modal').style.display = 'flex';
+}
+
+function closeExportModal() {
+    document.getElementById('export-modal').style.display = 'none';
+}
+
+function selectAllForExport(checked) {
+    document.querySelectorAll('#export-item-list input[type="checkbox"]').forEach(checkbox => {
+        checkbox.checked = checked;
+    });
+}
+
+function populateExportList() {
+    const listContainer = document.getElementById('export-item-list');
+    listContainer.innerHTML = '';
     const data = getScenariosData();
-    if (Object.keys(data.scenarios).length === 0) {
-        alert('Нет сценариев для экспорта');
+
+    function buildTree(path, container) {
+        const items = data.structure[path] || [];
+        items.sort((a, b) => {
+            if (a.type === b.type) return a.name.localeCompare(b.name);
+            return a.type === 'folder' ? -1 : 1;
+        }).forEach(item => {
+            const itemDiv = document.createElement('div');
+            const itemLabel = document.createElement('label');
+            const itemCheckbox = document.createElement('input');
+            itemCheckbox.type = 'checkbox';
+            itemCheckbox.dataset.name = item.name;
+            itemCheckbox.dataset.type = item.type;
+            itemCheckbox.dataset.path = path;
+
+            const icon = item.type === 'folder' ? '📁' : '📄';
+            itemLabel.appendChild(itemCheckbox);
+            itemLabel.appendChild(document.createTextNode(` ${icon} ${item.name}`));
+            itemDiv.appendChild(itemLabel);
+            
+            if (item.type === 'folder') {
+                itemDiv.className = 'export-item export-item--folder';
+                const childrenContainer = document.createElement('div');
+                childrenContainer.className = 'export-item-children';
+                itemDiv.appendChild(childrenContainer);
+                
+                itemCheckbox.addEventListener('change', (e) => {
+                    const isChecked = e.target.checked;
+                    childrenContainer.querySelectorAll('input[type="checkbox"]').forEach(childCheckbox => {
+                        childCheckbox.checked = isChecked;
+                    });
+                });
+
+                buildTree(`${path}${item.name}/`, childrenContainer);
+            } else {
+                itemDiv.className = 'export-item export-item--scenario';
+            }
+            container.appendChild(itemDiv);
+        });
+    }
+
+    buildTree('/', listContainer);
+}
+
+function executeExport() {
+    const exportData = { scenarios: {}, structure: {} };
+    const sourceData = getScenariosData();
+    
+    const allPaths = new Set();
+
+    document.querySelectorAll('#export-item-list input[data-type="scenario"]:checked').forEach(checkbox => {
+        const scenarioName = checkbox.dataset.name;
+        const path = checkbox.dataset.path;
+
+        // Add scenario data
+        if (sourceData.scenarios[scenarioName]) {
+            exportData.scenarios[scenarioName] = sourceData.scenarios[scenarioName];
+        }
+
+        // Add all parent paths to the set
+        let currentPath = '/';
+        allPaths.add(currentPath);
+        if (path !== '/') {
+            const pathParts = path.slice(1, -1).split('/');
+            pathParts.forEach(part => {
+                if (part) { // handle potential empty strings from split
+                    currentPath += `${part}/`;
+                    allPaths.add(currentPath);
+                }
+            });
+        }
+    });
+
+    // Reconstruct the structure based on the collected paths
+    allPaths.forEach(path => {
+        if (exportData.structure[path] === undefined) {
+            exportData.structure[path] = [];
+        }
+        
+        const originalItems = sourceData.structure[path] || [];
+        originalItems.forEach(item => {
+            if (item.type === 'folder') {
+                const folderPath = `${path}${item.name}/`;
+                if (allPaths.has(folderPath)) {
+                    if (!exportData.structure[path].some(i => i.name === item.name)) {
+                        exportData.structure[path].push(item);
+                    }
+                }
+            } else if (item.type === 'scenario') {
+                if (exportData.scenarios[item.name]) { // if this scenario was selected
+                     if (!exportData.structure[path].some(i => i.name === item.name)) {
+                        exportData.structure[path].push(item);
+                    }
+                }
+            }
+        });
+    });
+
+    if (Object.keys(exportData.scenarios).length === 0) {
+        showModal({ title: 'Экспорт отменен', message: 'Не выбрано ни одного сценария для экспорта.', status: 'warning' });
         return;
     }
-    const dataStr = JSON.stringify(data, null, 2);
+
+    const dataStr = JSON.stringify(exportData, null, 2);
     const dataBlob = new Blob([dataStr], { type: 'application/json' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(dataBlob);
-    link.download = 'juggling_scenarios.json';
+    link.download = 'juggling_scenarios_selection.json';
     link.click();
-    alert('Сценарии экспортированы в файл juggling_scenarios.json');
+    closeExportModal();
+    showModal({ title: 'Экспорт завершен', message: `${Object.keys(exportData.scenarios).length} сценариев экспортировано.`, status: 'success' });
 }
 
 function importScenarios() {
@@ -1380,11 +1656,19 @@ function importScenarios() {
                 });
 
                 updateScenarioGallery();
-                alert(`Импортировано ${Object.keys(scenariosToImport.scenarios).length} сценариев.`);
+                showModal({
+                    title: 'Импорт завершен',
+                    message: `Импортировано ${Object.keys(scenariosToImport.scenarios).length} сценариев.`,
+                    status: 'success'
+                });
 
             } catch (error) {
                 console.error("Import error:", error);
-                alert('Ошибка разбора файла. Убедитесь, что файл сохранен в кодировке UTF-8, особенно если он содержит русские символы.');
+                showModal({
+                    title: 'Ошибка импорта',
+                    message: 'Ошибка разбора файла. Убедитесь, что файл сохранен в кодировке UTF-8.',
+                    status: 'error'
+                });
             }
         };
         reader.readAsText(file, 'UTF-8'); // Explicitly specify UTF-8
@@ -1405,14 +1689,56 @@ function addKeyframe() {
     };
     keyframes.push(keyframe);
     updateKeyframesList();
-    alert(`Ключевой кадр "${keyframe.name}" добавлен!`);
+    showModal({ title: 'Кадр добавлен', message: `Ключевой кадр "${keyframe.name}" добавлен!`, status: 'success' });
 }
 
-function clearKeyframes() {
-    if (keyframes.length > 0 && confirm('Удалить все ключевые кадры анимации?')) {
-        keyframes = [];
-        stopAnimation();
+function clearAll(suppressConfirmation = false) {
+    const performClear = () => {
+        jugglers.forEach(j => scene.remove(j));
+        cubes.forEach(c => scene.remove(c));
+        passes.forEach(p => p.userData.destroy());
+        jugglers.length = 0;
+        cubes.length = 0;
+        passes.length = 0;
+        selectedObject = null;
+        clearKeyframes(true); // also suppress confirmation here
+        syncFields();
+    };
+
+    if (suppressConfirmation) {
+        performClear();
+    } else {
+        showModal({
+            title: 'Очистить сцену?',
+            message: 'Вы уверены, что хотите удалить все объекты со сцены? Это действие необратимо.',
+            type: 'confirm',
+            status: 'warning',
+            onConfirm: performClear
+        });
+    }
+}
+
+// ...
+
+function clearKeyframes(suppressConfirmation = false) {
+    if (keyframes.length === 0) return;
+
+    const performClear = () => {
+        keyframes.length = 0;
+        currentKeyframeIndex = -1;
         updateKeyframesList();
+    };
+
+    if (suppressConfirmation) {
+        performClear();
+    } else {
+        showModal({
+            title: 'Удалить анимацию?',
+            message: 'Вы уверены, что хотите удалить все ключевые кадры? Это действие необратимо.',
+            type: 'confirm',
+            status: 'warning',
+            onConfirm: performClear
+        });
     }
 }
 
@@ -1438,18 +1764,18 @@ function updateKeyframesList() {
 function goToKeyframe(index) {
     if (index < 0 || index >= keyframes.length) return;
     if (isAnimating) {
-        alert('Остановите анимацию для редактирования кадров');
+        showModal({ title: 'Анимация активна', message: 'Остановите анимацию для редактирования кадров.', status: 'warning' });
         return;
     }
     applyKeyframeState(keyframes[index]);
     currentKeyframe = index;
     updateKeyframesList();
-    alert(`Переход к кадру ${index + 1}. Теперь вы можете редактировать этот кадр.`);
+    showModal({ title: 'Редактирование кадра', message: `Переход к кадру ${index + 1}. Теперь вы можете редактировать этот кадр.`, status: 'normal' });
 }
 
 function updateCurrentKeyframe() {
     if (keyframes.length === 0) {
-        alert('Сначала создайте ключевой кадр!');
+        showModal({ title: 'Ошибка', message: 'Сначала создайте ключевой кадр!', status: 'error' });
         return;
     }
     if (currentKeyframe < 0 || currentKeyframe >= keyframes.length) currentKeyframe = 0;
@@ -1464,12 +1790,12 @@ function updateCurrentKeyframe() {
     };
     keyframes[currentKeyframe] = updatedKeyframe;
     updateKeyframesList();
-    alert(`Кадр "${updatedKeyframe.name}" обновлен!`);
+    showModal({ title: 'Кадр обновлен', message: `Кадр "${updatedKeyframe.name}" обновлен!`, status: 'success' });
 }
 
 function toggleAnimation() {
     if (keyframes.length < 2) {
-        alert('Добавьте минимум 2 ключевых кадра для анимации');
+        showModal({ title: 'Ошибка', message: 'Добавьте минимум 2 ключевых кадра для анимации.', status: 'error' });
         return;
     }
     if (isAnimating) stopAnimation();
