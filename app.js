@@ -126,21 +126,129 @@ function init() {
 }
 
 // Создание жонглёра
+// Создание жонглёра
 function createJuggler() {
     const group = new THREE.Group();
+
+    // Тело (более правильная форма)
     const bodyGeometry = new THREE.CylinderGeometry(0.2, 0.25, 0.8, 12);
     const bodyMaterial = new THREE.MeshLambertMaterial({ color: 0x4CAF50 });
     const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
     body.position.y = 0.9;
     body.castShadow = true;
     group.add(body);
+
+    // Голова
     const headGeometry = new THREE.SphereGeometry(0.15, 12, 8);
     const headMaterial = new THREE.MeshLambertMaterial({ color: 0xffdbac });
     const head = new THREE.Mesh(headGeometry, headMaterial);
     head.position.y = 1.45;
     head.castShadow = true;
     group.add(head);
-    group.userData = { type: 'juggler', id: Date.now() + Math.random(), height: 1.6 };
+
+    // Шея
+    const neckGeometry = new THREE.CylinderGeometry(0.06, 0.06, 0.1, 8);
+    const neckMaterial = new THREE.MeshLambertMaterial({ color: 0xffdbac });
+    const neck = new THREE.Mesh(neckGeometry, neckMaterial);
+    neck.position.y = 1.35;
+    neck.castShadow = true;
+    group.add(neck);
+
+    // Плечи
+    const shoulderGeometry = new THREE.CylinderGeometry(0.05, 0.05, 0.5, 8);
+    const shoulderMaterial = new THREE.MeshLambertMaterial({ color: 0x4CAF50 });
+    const shoulders = new THREE.Mesh(shoulderGeometry, shoulderMaterial);
+    shoulders.position.y = 1.25;
+    shoulders.rotation.z = Math.PI / 2;
+    shoulders.castShadow = true;
+    group.add(shoulders);
+
+    // Руки (верхняя часть)
+    const upperArmGeometry = new THREE.CylinderGeometry(0.04, 0.04, 0.3, 8);
+    const armMaterial = new THREE.MeshLambertMaterial({ color: 0xffdbac });
+
+    const leftUpperArm = new THREE.Mesh(upperArmGeometry, armMaterial);
+    leftUpperArm.position.set(-0.3, 1.05, 0);
+    leftUpperArm.castShadow = true;
+    group.add(leftUpperArm);
+
+    const rightUpperArm = new THREE.Mesh(upperArmGeometry, armMaterial);
+    rightUpperArm.position.set(0.3, 1.05, 0);
+    rightUpperArm.castShadow = true;
+    group.add(rightUpperArm);
+
+    // Руки (нижняя часть)
+    const lowerArmGeometry = new THREE.CylinderGeometry(0.035, 0.035, 0.25, 8);
+
+    const leftLowerArm = new THREE.Mesh(lowerArmGeometry, armMaterial);
+    leftLowerArm.position.set(-0.3, 0.75, 0);
+    leftLowerArm.castShadow = true;
+    group.add(leftLowerArm);
+
+    const rightLowerArm = new THREE.Mesh(lowerArmGeometry, armMaterial);
+    rightLowerArm.position.set(0.3, 0.75, 0);
+    rightLowerArm.castShadow = true;
+    group.add(rightLowerArm);
+
+    // Кисти рук
+    const handGeometry = new THREE.SphereGeometry(0.04, 8, 6);
+
+    const leftHand = new THREE.Mesh(handGeometry, armMaterial);
+    leftHand.position.set(-0.3, 0.6, 0);
+    leftHand.castShadow = true;
+    group.add(leftHand);
+
+    const rightHand = new THREE.Mesh(handGeometry, armMaterial);
+    rightHand.position.set(0.3, 0.6, 0);
+    rightHand.castShadow = true;
+    group.add(rightHand);
+
+    // Ноги (бедра) - правильно позиционированы
+    const thighGeometry = new THREE.CylinderGeometry(0.06, 0.06, 0.35, 8);
+    const legMaterial = new THREE.MeshLambertMaterial({ color: 0x2196F3 });
+
+    const leftThigh = new THREE.Mesh(thighGeometry, legMaterial);
+    leftThigh.position.set(-0.1, 0.4, 0);
+    leftThigh.castShadow = true;
+    group.add(leftThigh);
+
+    const rightThigh = new THREE.Mesh(thighGeometry, legMaterial);
+    rightThigh.position.set(0.1, 0.4, 0);
+    rightThigh.castShadow = true;
+    group.add(rightThigh);
+
+    // Ноги (голени)
+    const shinGeometry = new THREE.CylinderGeometry(0.05, 0.05, 0.3, 8);
+
+    const leftShin = new THREE.Mesh(shinGeometry, legMaterial);
+    leftShin.position.set(-0.1, 0.15, 0);
+    leftShin.castShadow = true;
+    group.add(leftShin);
+
+    const rightShin = new THREE.Mesh(shinGeometry, legMaterial);
+    rightShin.position.set(0.1, 0.15, 0);
+    rightShin.castShadow = true;
+    group.add(rightShin);
+
+    // Ступни - точно на уровне пола
+    const footGeometry = new THREE.BoxGeometry(0.12, 0.06, 0.2);
+    const footMaterial = new THREE.MeshLambertMaterial({ color: 0x333333 });
+
+    const leftFoot = new THREE.Mesh(footGeometry, footMaterial);
+    leftFoot.position.set(-0.1, 0.03, 0.04);
+    leftFoot.castShadow = true;
+    group.add(leftFoot);
+
+    const rightFoot = new THREE.Mesh(footGeometry, footMaterial);
+    rightFoot.position.set(0.1, 0.03, 0.04);
+    rightFoot.castShadow = true;
+    group.add(rightFoot);
+
+    group.userData = { 
+        type: 'juggler', 
+        id: jugglers.length,
+        height: 1.6
+    };
     return group;
 }
 
