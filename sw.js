@@ -1,107 +1,73 @@
-// Service Worker для управления кэшированием
-const CACHE_NAME = 'juggling-planner-v2.0.0';
-const CACHE_BUSTER = Date.now();
-
-// Файлы для кэширования
-const urlsToCache = [
+const CACHE_NAME = 'juggling-planner-v2.4.5'; // Updated version
+const APP_SHELL_FILES = [
     '/',
     '/index.html',
-    `/app.js?v=${CACHE_BUSTER}`,
+    '/app.js'
+];
+const LIBS_TO_CACHE = [
     'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js',
     'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js'
 ];
 
-// Установка Service Worker
+// Install: Cache the libraries
 self.addEventListener('install', event => {
-    console.log('Service Worker: Установка');
     event.waitUntil(
         caches.open(CACHE_NAME)
-            .then(cache => {
-                console.log('Service Worker: Кэширование файлов');
-                return cache.addAll(urlsToCache);
-            })
-            .then(() => {
-                // Принудительная активация нового SW
-                return self.skipWaiting();
-            })
+            .then(cache => cache.addAll(LIBS_TO_CACHE))
+            .then(() => self.skipWaiting())
     );
 });
 
-// Активация Service Worker
+// Activate: Clean up old caches
 self.addEventListener('activate', event => {
-    console.log('Service Worker: Активация');
     event.waitUntil(
         caches.keys().then(cacheNames => {
             return Promise.all(
                 cacheNames.map(cacheName => {
-                    // Удаляем старые кэши
                     if (cacheName !== CACHE_NAME) {
-                        console.log('Service Worker: Удаление старого кэша', cacheName);
                         return caches.delete(cacheName);
                     }
                 })
             );
-        }).then(() => {
-            // Принудительное управление всеми клиентами
-            return self.clients.claim();
-        })
+        }).then(() => self.clients.claim())
     );
 });
 
-// Обработка запросов
+// Fetch: Network first for app shell, Cache first for libs
 self.addEventListener('fetch', event => {
-    // Для HTML файлов всегда проверяем сеть первой
-    if (event.request.destination === 'document') {
+    const url = new URL(event.request.url);
+
+    // For app shell files, go network first
+    if (APP_SHELL_FILES.includes(url.pathname)) {
         event.respondWith(
             fetch(event.request)
                 .then(response => {
-                    // Если получили ответ из сети, кэшируем его
-                    if (response.status === 200) {
-                        const responseClone = response.clone();
+                    // If successful, update the cache
+                    if (response.ok) {
+                        const resClone = response.clone();
                         caches.open(CACHE_NAME).then(cache => {
-                            cache.put(event.request, responseClone);
+                            cache.put(event.request, resClone);
                         });
                     }
                     return response;
                 })
                 .catch(() => {
-                    // Если сеть недоступна, берем из кэша
+                    // If network fails, serve from cache
                     return caches.match(event.request);
                 })
         );
-        return;
+    } 
+    // For other requests (like the libs), go cache first
+    else {
+        event.respondWith(
+            caches.match(event.request)
+                .then(response => response || fetch(event.request))
+        );
     }
-
-    // Для остальных ресурсов используем стратегию "кэш сначала"
-    event.respondWith(
-        caches.match(event.request)
-            .then(response => {
-                // Возвращаем из кэша если есть, иначе загружаем из сети
-                return response || fetch(event.request).then(fetchResponse => {
-                    // Кэшируем новый ответ
-                    if (fetchResponse.status === 200) {
-                        const responseClone = fetchResponse.clone();
-                        caches.open(CACHE_NAME).then(cache => {
-                            cache.put(event.request, responseClone);
-                        });
-                    }
-                    return fetchResponse;
-                });
-            })
-    );
 });
 
-// Обработка сообщений от главного потока
 self.addEventListener('message', event => {
     if (event.data && event.data.type === 'SKIP_WAITING') {
         self.skipWaiting();
-    }
-    
-    if (event.data && event.data.type === 'CLEAR_CACHE') {
-        caches.keys().then(names => {
-            names.forEach(name => {
-                caches.delete(name);
-            });
-        });
     }
 });

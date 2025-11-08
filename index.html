@@ -715,23 +715,6 @@
             background: #4a4a4a;
         }
 
-        .custom-input-style {
-            width: 100%;
-            padding: 10px;
-            margin: 10px 0;
-            border: 1px solid #555;
-            background: #333;
-            color: white;
-            border-radius: 4px;
-            box-sizing: border-box;
-        }
-        .modal-button-row {
-            display: flex;
-            justify-content: space-between;
-            gap: 10px;
-            margin-top: 15px;
-        }
-
         /* Стили для анимации */
         .keyframes-list {
             max-height: 200px;
@@ -1058,18 +1041,6 @@
             <ul id="move-folder-list">
                 <!-- Folder list will be populated here -->
             </ul>
-        </div>
-    </div>
-
-    <!-- Modal for creating a folder -->
-    <div id="create-folder-modal" class="move-modal">
-        <div class="move-modal-content">
-            <h4>Создать новую папку</h4>
-            <input type="text" id="new-folder-name-input" placeholder="Название папки" class="custom-input-style">
-            <div class="modal-button-row">
-                 <button class="button" onclick="executeCreateFolder()">Создать</button>
-                 <button class="button" onclick="closeCreateFolderModal()">Отмена</button>
-            </div>
         </div>
     </div>
 
