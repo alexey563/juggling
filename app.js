@@ -835,11 +835,21 @@ function saveScenario() {
     }
 
     const data = getScenariosData();
-    if (data.scenarios[scenarioName]) {
+    const currentItems = data.structure[currentPath] || [];
+    const existingItem = currentItems.find(item => item.name === scenarioName);
+
+    if (existingItem) {
+        if (existingItem.type === 'folder') {
+            alert(`Имя "${scenarioName}" уже занято папкой в этой директории.`);
+            return;
+        }
+        // If it's a scenario, the name is taken. Ask to overwrite.
         if (!confirm(`Сценарий "${scenarioName}" уже существует. Перезаписать?`)) {
             return;
         }
     }
+
+    // If we are here, it's either a new name or an overwrite confirmation was given.
 
     const thumbnail = captureSceneThumbnail();
     const scenario = {
@@ -855,12 +865,10 @@ function saveScenario() {
 
     data.scenarios[scenarioName] = scenario;
 
-    // Add to current folder if it doesn't exist there
-    const currentItems = data.structure[currentPath] || [];
-    if (!currentItems.some(item => item.name === scenarioName)) {
-        currentItems.push({ type: 'scenario', name: scenarioName });
+    // Add to current folder structure only if it's a new item
+    if (!existingItem) {
+        data.structure[currentPath].push({ type: 'scenario', name: scenarioName });
     }
-    data.structure[currentPath] = currentItems; // Ensure the structure is updated
 
     saveScenariosData(data);
     updateScenarioGallery();
