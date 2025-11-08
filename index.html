@@ -544,8 +544,8 @@
             display: flex;
             flex-direction: column;
             gap: 10px;
-            max-height: 300px;
-            overflow-y: auto;
+            overflow-x: hidden;
+            padding: 5px;
         }
 
         .scenario-item {
@@ -555,6 +555,7 @@
             overflow: hidden;
             cursor: pointer;
             transition: border-color 0.3s;
+            /* width and flex-shrink are removed to allow vertical stacking */
         }
 
         .scenario-item:hover {
@@ -608,6 +609,109 @@
 
         .scenario-delete:hover {
             background: #d32f2f;
+        }
+
+        /* Styles for Folders */
+        .folder-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: #3a3a3a;
+        }
+
+        .folder-icon {
+            font-size: 48px;
+            line-height: 1;
+            color: #777;
+        }
+
+        .folder-item .scenario-info {
+            position: static;
+            background: none;
+            padding: 5px;
+            text-align: center;
+        }
+
+        /* Drag and Drop Styles */
+        .scenario-item.dragging {
+            opacity: 0.4;
+        }
+
+        .folder-item.drop-target {
+            border-color: #ffeb3b;
+            background-color: #444;
+        }
+
+        #drag-clone {
+            pointer-events: none;
+            /* Ensure the clone doesn't intercept mouse events */
+        }
+
+        .scenario-move {
+            position: absolute;
+            top: 5px;
+            right: 30px; /* Next to the delete button */
+            background: #2196F3;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            font-size: 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10; /* Ensure it's above the clickable area */
+        }
+        .scenario-move:hover {
+            background: #1976D2;
+        }
+
+        /* Modal for moving folders */
+        .move-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 2500;
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+        .move-modal-content {
+            background: #3a3a3a;
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 300px;
+        }
+        .move-modal-close {
+            float: right;
+            background: none;
+            border: none;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+        }
+        #move-folder-list {
+            list-style: none;
+            padding: 0;
+            margin-top: 10px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        #move-folder-list li {
+            padding: 10px;
+            border-bottom: 1px solid #555;
+            cursor: pointer;
+        }
+        #move-folder-list li:hover {
+            background: #4a4a4a;
         }
 
         /* Стили для анимации */
@@ -673,6 +777,7 @@
                     <input type="text" id="scenarioName" placeholder="Введите название">
                 </div>
                 <button class="button" onclick="saveScenario()">Сохранить сценарий</button>
+                <button class="button" onclick="createFolder()">Создать папку</button>
                 <button class="button" onclick="exportScenarios()">Экспорт сценариев</button>
                 <button class="button" onclick="importScenarios()">Импорт сценариев</button>
                 <div id="scenarioGallery" class="scenario-gallery">
@@ -924,6 +1029,17 @@
                         поворота по двум осям</li>
                 </ul>
             </div>
+        </div>
+    </div>
+
+    <!-- Modal for moving scenarios -->
+    <div id="move-folder-modal" class="move-modal">
+        <div class="move-modal-content">
+            <button class="move-modal-close" onclick="closeMoveToFolderModal()">&times;</button>
+            <h4>Выберите папку для перемещения</h4>
+            <ul id="move-folder-list">
+                <!-- Folder list will be populated here -->
+            </ul>
         </div>
     </div>
 
