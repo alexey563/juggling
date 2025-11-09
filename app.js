@@ -1527,6 +1527,10 @@ function onTouchStart(event) {
 }
 
 function onTouchMove(event) {
+    // If the event target is inside a modal, don't prevent default to allow scrolling.
+    if (event.target.closest('.modal-overlay')) {
+        return;
+    }
     event.preventDefault();
 }
 
@@ -1821,8 +1825,15 @@ function importScenarios() {
     input.click();
 }
 
+let mergeModalListenerAdded = false;
 function showMergeModal() {
     const modal = document.getElementById('merge-modal');
+    if (!mergeModalListenerAdded) {
+        // Stop touchmove propagation to allow scrolling on mobile
+        modal.addEventListener('touchmove', e => e.stopPropagation());
+        mergeModalListenerAdded = true;
+    }
+
     const list = document.getElementById('merge-scenario-list');
     list.innerHTML = '';
     document.getElementById('mergedScenarioName').value = '';
@@ -1839,15 +1850,24 @@ function showMergeModal() {
         const scenario = data.scenarios[name];
         const li = document.createElement('li');
         li.className = 'export-item'; // Re-use style
-        li.draggable = true;
         li.dataset.name = name;
-        // Add checkbox
-        li.innerHTML = `<label style="display: flex; align-items: center; width: 100%; cursor: grab;"><input type="checkbox" style="margin-right: 10px; width: 20px; height: 20px;"><span>☰</span> <img src="${scenario.thumbnail || ''}" style="width: 40px; height: 30px; margin: 0 10px; vertical-align: middle; object-fit: cover;"> ${name}</label>`;
-        li.style.cursor = 'grab';
+        
+        const buttonStyle = `background: #555; color: white; border: none; border-radius: 4px; width: 30px; height: 30px; font-size: 16px; cursor: pointer;`;
+
+        li.innerHTML = `
+            <div style="display: flex; align-items: center; width: 100%; padding: 5px 0;">
+                <input type="checkbox" style="margin-right: 10px; width: 20px; height: 20px; flex-shrink: 0;">
+                <img src="${scenario.thumbnail || ''}" style="width: 40px; height: 30px; margin-right: 10px; object-fit: cover; flex-shrink: 0;">
+                <span style="flex-grow: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${name}</span>
+                <div style="margin-left: auto; display: flex; flex-shrink: 0;">
+                    <button onclick="moveScenarioUp(this)" style="${buttonStyle} margin-right: 5px;">▲</button>
+                    <button onclick="moveScenarioDown(this)" style="${buttonStyle}">▼</button>
+                </div>
+            </div>`;
+        
         list.appendChild(li);
     });
 
-    setupMergeDragAndDrop();
     modal.style.display = 'flex';
 }
 
@@ -1855,53 +1875,18 @@ function closeMergeModal() {
     document.getElementById('merge-modal').style.display = 'none';
 }
 
-function setupMergeDragAndDrop() {
-    const list = document.getElementById('merge-scenario-list');
-    let draggedItem = null;
-
-    list.addEventListener('dragstart', e => {
-        if (e.target.tagName === 'LI') {
-            draggedItem = e.target;
-            setTimeout(() => {
-                e.target.style.opacity = '0.5';
-            }, 0);
-        }
-    });
-
-    list.addEventListener('dragend', e => {
-        if (draggedItem) {
-            setTimeout(() => {
-                draggedItem.style.opacity = '1';
-                draggedItem = null;
-            }, 0);
-        }
-    });
-
-    list.addEventListener('dragover', e => {
-        e.preventDefault();
-        if (draggedItem) {
-            const afterElement = getDragAfterElement(list, e.clientY);
-            if (afterElement == null) {
-                list.appendChild(draggedItem);
-            } else {
-                list.insertBefore(draggedItem, afterElement);
-            }
-        }
-    });
+function moveScenarioUp(button) {
+    const li = button.closest('li');
+    if (li && li.previousElementSibling) {
+        li.parentNode.insertBefore(li, li.previousElementSibling);
+    }
 }
 
-function getDragAfterElement(container, y) {
-    const draggableElements = [...container.querySelectorAll('li:not(.dragging)')];
-
-    return draggableElements.reduce((closest, child) => {
-        const box = child.getBoundingClientRect();
-        const offset = y - box.top - box.height / 2;
-        if (offset < 0 && offset > closest.offset) {
-            return { offset: offset, element: child };
-        } else {
-            return closest;
-        }
-    }, { offset: Number.NEGATIVE_INFINITY }).element;
+function moveScenarioDown(button) {
+    const li = button.closest('li');
+    if (li && li.nextElementSibling) {
+        li.parentNode.insertBefore(li.nextElementSibling, li);
+    }
 }
 
 function executeMerge() {
