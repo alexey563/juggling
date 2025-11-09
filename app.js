@@ -279,8 +279,21 @@ function createCubeFromData(cubeData) {
     const geometry = new THREE.BoxGeometry(cubeData.width, cubeData.height, cubeData.depth);
     const material = new THREE.MeshLambertMaterial({ color: 0xff9800 });
     const cube = new THREE.Mesh(geometry, material);
-    cube.position.set(cubeData.x, cubeData.y, cubeData.z);
-    cube.rotation.set(cubeData.rotationX, cubeData.rotationY, cubeData.rotationZ);
+
+    // Handle position from either scenario or keyframe
+    if (cubeData.position) {
+        cube.position.copy(cubeData.position);
+    } else {
+        cube.position.set(cubeData.x || 0, cubeData.y || 0, cubeData.z || 0);
+    }
+
+    // Handle rotation from either scenario or keyframe
+    if (cubeData.rotation) {
+        cube.rotation.set(cubeData.rotation._x || 0, cubeData.rotation._y || 0, cubeData.rotation._z || 0, cubeData.rotation._order || 'XYZ');
+    } else {
+        cube.rotation.set(cubeData.rotationX || 0, cubeData.rotationY || 0, cubeData.rotationZ || 0);
+    }
+
     cube.castShadow = true;
     cube.receiveShadow = true;
     cube.userData = { type: 'cube', id: cubeData.id, height: cubeData.height, width: cubeData.width, depth: cubeData.depth };
@@ -1040,7 +1053,9 @@ function loadScenario(scenarioName) {
         const juggler = createJuggler();
         juggler.userData.id = jData.id;
         juggler.position.copy(jData.position);
-        juggler.rotation.copy(jData.rotation);
+        if (jData.rotation) {
+            juggler.rotation.set(jData.rotation._x || 0, jData.rotation._y || 0, jData.rotation._z || 0, jData.rotation._order || 'XYZ');
+        }
         scene.add(juggler);
         jugglers.push(juggler);
     });
