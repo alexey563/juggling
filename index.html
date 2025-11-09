@@ -924,6 +924,7 @@
                 <button class="button" onclick="createFolder()">Создать папку</button>
                 <button class="button" onclick="exportScenarios()">Экспорт сценариев</button>
                 <button class="button" onclick="importScenarios()">Импорт сценариев</button>
+                <button class="button" onclick="showMergeModal()">Объединить сценарии</button>
                 <div id="scenarioGallery" class="scenario-gallery">
                     <!-- Сценарии будут добавлены здесь -->
                 </div>
@@ -1202,6 +1203,26 @@
             <div class="modal-button-row">
                  <button class="button button-primary" onclick="executeExport()">Экспортировать</button>
                  <button class="button button-secondary" onclick="closeExportModal()">Отмена</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for Merging Scenarios -->
+    <div id="merge-modal" class="modal-overlay">
+        <div class="modal-container">
+            <button class="modal-close" onclick="closeMergeModal()">&times;</button>
+            <h4>Объединение сценариев</h4>
+            <p>Выберите сценарии и перетащите их, чтобы задать порядок. Первый сценарий в списке будет начальным.</p>
+            <div class="control-group">
+                <label>Название нового сценария:</label>
+                <input type="text" id="mergedScenarioName" class="custom-input-style" placeholder="Название объединенного сценария">
+            </div>
+            <ul id="merge-scenario-list" class="export-list" style="height: 250px; overflow-y: auto;">
+                <!-- Scenarios will be populated here -->
+            </ul>
+            <div class="modal-button-row">
+                 <button class="button button-primary" onclick="executeMerge()">Объединить</button>
+                 <button class="button button-secondary" onclick="closeMergeModal()">Отмена</button>
             </div>
         </div>
     </div>

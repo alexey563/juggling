@@ -14,6 +14,7 @@ let dragPlane = null;
 let isDraggingObject = false;
 let isDraggingPass = false;
 let draggedObject = null;
+let draggedItem = null;
 
 // Версия приложения и проверка обновлений
 const APP_VERSION = '2.4.5'; // Incremented version
@@ -126,21 +127,129 @@ function init() {
 }
 
 // Создание жонглёра
+// Создание жонглёра
 function createJuggler() {
     const group = new THREE.Group();
+
+    // Тело (более правильная форма)
     const bodyGeometry = new THREE.CylinderGeometry(0.2, 0.25, 0.8, 12);
     const bodyMaterial = new THREE.MeshLambertMaterial({ color: 0x4CAF50 });
     const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
     body.position.y = 0.9;
     body.castShadow = true;
     group.add(body);
+
+    // Голова
     const headGeometry = new THREE.SphereGeometry(0.15, 12, 8);
     const headMaterial = new THREE.MeshLambertMaterial({ color: 0xffdbac });
     const head = new THREE.Mesh(headGeometry, headMaterial);
     head.position.y = 1.45;
     head.castShadow = true;
     group.add(head);
-    group.userData = { type: 'juggler', id: Date.now() + Math.random(), height: 1.6 };
+
+    // Шея
+    const neckGeometry = new THREE.CylinderGeometry(0.06, 0.06, 0.1, 8);
+    const neckMaterial = new THREE.MeshLambertMaterial({ color: 0xffdbac });
+    const neck = new THREE.Mesh(neckGeometry, neckMaterial);
+    neck.position.y = 1.35;
+    neck.castShadow = true;
+    group.add(neck);
+
+    // Плечи
+    const shoulderGeometry = new THREE.CylinderGeometry(0.05, 0.05, 0.5, 8);
+    const shoulderMaterial = new THREE.MeshLambertMaterial({ color: 0x4CAF50 });
+    const shoulders = new THREE.Mesh(shoulderGeometry, shoulderMaterial);
+    shoulders.position.y = 1.25;
+    shoulders.rotation.z = Math.PI / 2;
+    shoulders.castShadow = true;
+    group.add(shoulders);
+
+    // Руки (верхняя часть)
+    const upperArmGeometry = new THREE.CylinderGeometry(0.04, 0.04, 0.3, 8);
+    const armMaterial = new THREE.MeshLambertMaterial({ color: 0xffdbac });
+
+    const leftUpperArm = new THREE.Mesh(upperArmGeometry, armMaterial);
+    leftUpperArm.position.set(-0.3, 1.05, 0);
+    leftUpperArm.castShadow = true;
+    group.add(leftUpperArm);
+
+    const rightUpperArm = new THREE.Mesh(upperArmGeometry, armMaterial);
+    rightUpperArm.position.set(0.3, 1.05, 0);
+    rightUpperArm.castShadow = true;
+    group.add(rightUpperArm);
+
+    // Руки (нижняя часть)
+    const lowerArmGeometry = new THREE.CylinderGeometry(0.035, 0.035, 0.25, 8);
+
+    const leftLowerArm = new THREE.Mesh(lowerArmGeometry, armMaterial);
+    leftLowerArm.position.set(-0.3, 0.75, 0);
+    leftLowerArm.castShadow = true;
+    group.add(leftLowerArm);
+
+    const rightLowerArm = new THREE.Mesh(lowerArmGeometry, armMaterial);
+    rightLowerArm.position.set(0.3, 0.75, 0);
+    rightLowerArm.castShadow = true;
+    group.add(rightLowerArm);
+
+    // Кисти рук
+    const handGeometry = new THREE.SphereGeometry(0.04, 8, 6);
+
+    const leftHand = new THREE.Mesh(handGeometry, armMaterial);
+    leftHand.position.set(-0.3, 0.6, 0);
+    leftHand.castShadow = true;
+    group.add(leftHand);
+
+    const rightHand = new THREE.Mesh(handGeometry, armMaterial);
+    rightHand.position.set(0.3, 0.6, 0);
+    rightHand.castShadow = true;
+    group.add(rightHand);
+
+    // Ноги (бедра) - правильно позиционированы
+    const thighGeometry = new THREE.CylinderGeometry(0.06, 0.06, 0.35, 8);
+    const legMaterial = new THREE.MeshLambertMaterial({ color: 0x2196F3 });
+
+    const leftThigh = new THREE.Mesh(thighGeometry, legMaterial);
+    leftThigh.position.set(-0.1, 0.4, 0);
+    leftThigh.castShadow = true;
+    group.add(leftThigh);
+
+    const rightThigh = new THREE.Mesh(thighGeometry, legMaterial);
+    rightThigh.position.set(0.1, 0.4, 0);
+    rightThigh.castShadow = true;
+    group.add(rightThigh);
+
+    // Ноги (голени)
+    const shinGeometry = new THREE.CylinderGeometry(0.05, 0.05, 0.3, 8);
+
+    const leftShin = new THREE.Mesh(shinGeometry, legMaterial);
+    leftShin.position.set(-0.1, 0.15, 0);
+    leftShin.castShadow = true;
+    group.add(leftShin);
+
+    const rightShin = new THREE.Mesh(shinGeometry, legMaterial);
+    rightShin.position.set(0.1, 0.15, 0);
+    rightShin.castShadow = true;
+    group.add(rightShin);
+
+    // Ступни - точно на уровне пола
+    const footGeometry = new THREE.BoxGeometry(0.12, 0.06, 0.2);
+    const footMaterial = new THREE.MeshLambertMaterial({ color: 0x333333 });
+
+    const leftFoot = new THREE.Mesh(footGeometry, footMaterial);
+    leftFoot.position.set(-0.1, 0.03, 0.04);
+    leftFoot.castShadow = true;
+    group.add(leftFoot);
+
+    const rightFoot = new THREE.Mesh(footGeometry, footMaterial);
+    rightFoot.position.set(0.1, 0.03, 0.04);
+    rightFoot.castShadow = true;
+    group.add(rightFoot);
+
+    group.userData = { 
+        type: 'juggler', 
+        id: 'juggler_' + Date.now() + Math.random().toString(36).substr(2, 9),
+        height: 1.6
+    };
     return group;
 }
 
@@ -733,15 +842,36 @@ function deleteSelected() {
     clearSelection();
 }
 
-function clearAll() {
-    [...jugglers, ...cubes, ...passes].forEach(object => scene.remove(object));
-    jugglers = [];
-    cubes = [];
-    passes = [];
-    stopAnimation();
-    keyframes = [];
-    updateKeyframesList();
-    clearSelection();
+function clearAll(suppressConfirmation = false) {
+    const performClear = () => {
+        stopAnimation();
+        clearSelection();
+        [...jugglers, ...cubes, ...passes].forEach(object => {
+            if (object.parent) {
+                scene.remove(object);
+            }
+        });
+        jugglers = [];
+        cubes = [];
+        passes = [];
+        keyframes = [];
+        updateKeyframesList();
+        if (typeof syncFields === 'function') {
+            syncFields();
+        }
+    };
+
+    if (suppressConfirmation) {
+        performClear();
+    } else {
+        showModal({
+            title: 'Очистить сцену?',
+            message: 'Вы уверены, что хотите удалить все объекты со сцены? Это действие необратимо.',
+            type: 'confirm',
+            status: 'warning',
+            onConfirm: performClear
+        });
+    }
 }
 
 function onWindowResize() {
@@ -1676,6 +1806,194 @@ function importScenarios() {
     input.click();
 }
 
+function showMergeModal() {
+    const modal = document.getElementById('merge-modal');
+    const list = document.getElementById('merge-scenario-list');
+    list.innerHTML = '';
+    document.getElementById('mergedScenarioName').value = '';
+
+    const data = getScenariosData();
+    const scenarioNames = Object.keys(data.scenarios);
+
+    if (scenarioNames.length === 0) {
+        showModal({ title: 'Нет сценариев', message: 'Не найдено сохраненных сценариев для объединения.', status: 'warning' });
+        return;
+    }
+
+    scenarioNames.forEach(name => {
+        const scenario = data.scenarios[name];
+        const li = document.createElement('li');
+        li.className = 'export-item'; // Re-use style
+        li.draggable = true;
+        li.dataset.name = name;
+        // Add checkbox
+        li.innerHTML = `<label style="display: flex; align-items: center; width: 100%; cursor: grab;"><input type="checkbox" style="margin-right: 10px; width: 20px; height: 20px;"><span>☰</span> <img src="${scenario.thumbnail || ''}" style="width: 40px; height: 30px; margin: 0 10px; vertical-align: middle; object-fit: cover;"> ${name}</label>`;
+        li.style.cursor = 'grab';
+        list.appendChild(li);
+    });
+
+    setupMergeDragAndDrop();
+    modal.style.display = 'flex';
+}
+
+function closeMergeModal() {
+    document.getElementById('merge-modal').style.display = 'none';
+}
+
+function setupMergeDragAndDrop() {
+    const list = document.getElementById('merge-scenario-list');
+    let draggedItem = null;
+
+    list.addEventListener('dragstart', e => {
+        if (e.target.tagName === 'LI') {
+            draggedItem = e.target;
+            setTimeout(() => {
+                e.target.style.opacity = '0.5';
+            }, 0);
+        }
+    });
+
+    list.addEventListener('dragend', e => {
+        if (draggedItem) {
+            setTimeout(() => {
+                draggedItem.style.opacity = '1';
+                draggedItem = null;
+            }, 0);
+        }
+    });
+
+    list.addEventListener('dragover', e => {
+        e.preventDefault();
+        if (draggedItem) {
+            const afterElement = getDragAfterElement(list, e.clientY);
+            if (afterElement == null) {
+                list.appendChild(draggedItem);
+            } else {
+                list.insertBefore(draggedItem, afterElement);
+            }
+        }
+    });
+}
+
+function getDragAfterElement(container, y) {
+    const draggableElements = [...container.querySelectorAll('li:not(.dragging)')];
+
+    return draggableElements.reduce((closest, child) => {
+        const box = child.getBoundingClientRect();
+        const offset = y - box.top - box.height / 2;
+        if (offset < 0 && offset > closest.offset) {
+            return { offset: offset, element: child };
+        } else {
+            return closest;
+        }
+    }, { offset: Number.NEGATIVE_INFINITY }).element;
+}
+
+function executeMerge() {
+    const newName = document.getElementById('mergedScenarioName').value.trim();
+    if (!newName) {
+        showModal({ title: 'Ошибка', message: 'Пожалуйста, введите название для нового объединенного сценария.', status: 'error' });
+        return;
+    }
+
+    const list = document.getElementById('merge-scenario-list');
+    // Get only checked scenarios
+    const scenarioNames = [...list.querySelectorAll('li')]
+        .filter(li => li.querySelector('input[type="checkbox"]:checked'))
+        .map(li => li.dataset.name);
+
+    if (scenarioNames.length < 2) {
+        showModal({ title: 'Ошибка', message: 'Пожалуйста, выберите как минимум два сценария для объединения.', status: 'error' });
+        return;
+    }
+
+    const data = getScenariosData();
+
+    // Check if new name already exists
+    const currentItems = data.structure[currentPath] || [];
+    const existingItem = currentItems.find(item => item.name === newName);
+
+    if (existingItem) {
+         if (existingItem.type === 'folder') {
+            showModal({ title: 'Ошибка', message: `Имя "${newName}" уже занято папкой в этой директории.`, status: 'error' });
+            return;
+        }
+        showModal({
+            title: 'Подтверждение',
+            message: `Сценарий "${newName}" уже существует. Перезаписать?`,
+            type: 'confirm',
+            status: 'warning',
+            onConfirm: () => proceedWithMerge(newName, scenarioNames, data)
+        });
+    } else {
+        proceedWithMerge(newName, scenarioNames, data);
+    }
+}
+
+function proceedWithMerge(newName, scenarioNames, data) {
+    let mergedKeyframes = [];
+    let firstScenario = null;
+    let keyframeCounter = 1;
+
+    for (const name of scenarioNames) {
+        const scenario = data.scenarios[name];
+        if (!scenario) continue;
+
+        if (!firstScenario) {
+            firstScenario = scenario;
+        }
+
+        if (scenario.animation && scenario.animation.keyframes) {
+            const renamedKeyframes = scenario.animation.keyframes.map(kf => {
+                const newKf = JSON.parse(JSON.stringify(kf));
+                newKf.name = `Шаг ${keyframeCounter++}: ${kf.name}`;
+                return newKf;
+            });
+            mergedKeyframes.push(...renamedKeyframes);
+        }
+    }
+
+    if (!firstScenario) {
+        showModal({ title: 'Ошибка', message: 'Не удалось загрузить данные первого сценария.', status: 'error' });
+        return;
+    }
+
+    // Create the new merged scenario object
+    const mergedScenario = {
+        name: newName,
+        userId: userId,
+        timestamp: new Date().toISOString(),
+        thumbnail: firstScenario.thumbnail, // Use thumbnail of the first scenario
+        // DEEP COPY the initial state from the FIRST scenario
+        jugglers: JSON.parse(JSON.stringify(firstScenario.jugglers || [])),
+        cubes: JSON.parse(JSON.stringify(firstScenario.cubes || [])),
+        passes: JSON.parse(JSON.stringify(firstScenario.passes || [])),
+        animation: {
+            keyframes: mergedKeyframes,
+            speed: firstScenario.animation ? (firstScenario.animation.speed || 1.0) : 1.0
+        }
+    };
+
+    data.scenarios[newName] = mergedScenario;
+    if (!data.structure[currentPath].some(item => item.name === newName)) {
+        data.structure[currentPath].push({ type: 'scenario', name: newName });
+    }
+
+    saveScenariosData(data);
+    updateScenarioGallery();
+    closeMergeModal();
+
+    showModal({
+        title: 'Успех!',
+        message: `Сценарии объединены в новый сценарий "${newName}".`,
+        status: 'success',
+        onConfirm: () => {
+            loadScenario(newName);
+        }
+    });
+}
+
+
 // Animation System (largely unchanged, omitted for brevity but included in the final file)
 function addKeyframe() {
     const keyframe = {
@@ -1690,32 +2008,6 @@ function addKeyframe() {
     keyframes.push(keyframe);
     updateKeyframesList();
     showModal({ title: 'Кадр добавлен', message: `Ключевой кадр "${keyframe.name}" добавлен!`, status: 'success' });
-}
-
-function clearAll(suppressConfirmation = false) {
-    const performClear = () => {
-        jugglers.forEach(j => scene.remove(j));
-        cubes.forEach(c => scene.remove(c));
-        passes.forEach(p => p.userData.destroy());
-        jugglers.length = 0;
-        cubes.length = 0;
-        passes.length = 0;
-        selectedObject = null;
-        clearKeyframes(true); // also suppress confirmation here
-        syncFields();
-    };
-
-    if (suppressConfirmation) {
-        performClear();
-    } else {
-        showModal({
-            title: 'Очистить сцену?',
-            message: 'Вы уверены, что хотите удалить все объекты со сцены? Это действие необратимо.',
-            type: 'confirm',
-            status: 'warning',
-            onConfirm: performClear
-        });
-    }
 }
 
 // ...
@@ -1829,19 +2121,20 @@ function stopAnimation() {
 
 function animateToNextKeyframe() {
     if (!isAnimating || keyframes.length === 0) return;
+
+    // Animate to the state of the current keyframe
     animateToKeyframeState(keyframes[currentKeyframe]);
     updateKeyframesList();
-    const duration = 2000 / animationSpeed;
+
+    // This is the duration of the state-to-state animation
+    const duration = 1500 / animationSpeed; 
+    
     animationInterval = setTimeout(() => {
+        // Move to the next keyframe index, looping around
         currentKeyframe = (currentKeyframe + 1) % keyframes.length;
-        if (currentKeyframe === 0) {
-            applyKeyframeState(keyframes[0]);
-            currentKeyframe = 1;
-            setTimeout(() => { if (isAnimating) animateToNextKeyframe(); }, 500);
-        } else {
-            animateToNextKeyframe();
-        }
-    }, duration);
+        // Recursively call to start animation to the *next* state
+        animateToNextKeyframe();
+    }, duration); // Wait for the current animation to finish before starting the next
 }
 
 function applyKeyframeState(keyframe) {
