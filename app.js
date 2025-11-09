@@ -1048,6 +1048,7 @@ function loadScenario(scenarioName) {
     }
 
     clearAll(true); // Pass true to suppress confirmation
+    renderer.render(scene, camera); // Force a render after clearing
 
     scenario.jugglers.forEach(jData => {
         const juggler = createJuggler();
@@ -1825,6 +1826,25 @@ function importScenarios() {
     input.click();
 }
 
+function getScenarioPaths() {
+    const data = getScenariosData();
+    const scenarioPaths = {};
+
+    function traverse(path) {
+        const items = data.structure[path] || [];
+        items.forEach(item => {
+            if (item.type === 'scenario') {
+                scenarioPaths[item.name] = path;
+            } else if (item.type === 'folder') {
+                traverse(`${path}${item.name}/`);
+            }
+        });
+    }
+
+    traverse('/');
+    return scenarioPaths;
+}
+
 let mergeModalListenerAdded = false;
 function showMergeModal() {
     const modal = document.getElementById('merge-modal');
@@ -1840,6 +1860,7 @@ function showMergeModal() {
 
     const data = getScenariosData();
     const scenarioNames = Object.keys(data.scenarios);
+    const scenarioPaths = getScenarioPaths();
 
     if (scenarioNames.length === 0) {
         showModal({ title: 'Нет сценариев', message: 'Не найдено сохраненных сценариев для объединения.', status: 'warning' });
@@ -1853,12 +1874,23 @@ function showMergeModal() {
         li.dataset.name = name;
         
         const buttonStyle = `background: #555; color: white; border: none; border-radius: 4px; width: 30px; height: 30px; font-size: 16px; cursor: pointer;`;
+        const path = scenarioPaths[name];
+        let displayPath;
+        if (path && path !== '/') {
+            const formattedPath = path.slice(1, -1).replace(/\//g, ' / ');
+            displayPath = `<span style="font-size: 12px; color: #a0a0a0; font-style: italic;">Папка: ${formattedPath}</span><br>`;
+        } else {
+            displayPath = `<span style="font-size: 12px; color: #a0a0a0; font-style: italic;">Папка: (корень)</span><br>`;
+        }
 
         li.innerHTML = `
             <div style="display: flex; align-items: center; width: 100%; padding: 5px 0;">
                 <input type="checkbox" style="margin-right: 10px; width: 20px; height: 20px; flex-shrink: 0;">
                 <img src="${scenario.thumbnail || ''}" style="width: 40px; height: 30px; margin-right: 10px; object-fit: cover; flex-shrink: 0;">
-                <span style="flex-grow: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${name}</span>
+                <div style="flex-grow: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                    ${displayPath}
+                    ${name}
+                </div>
                 <div style="margin-left: auto; display: flex; flex-shrink: 0;">
                     <button onclick="moveScenarioUp(this)" style="${buttonStyle} margin-right: 5px;">▲</button>
                     <button onclick="moveScenarioDown(this)" style="${buttonStyle}">▼</button>
@@ -1908,19 +1940,15 @@ function executeMerge() {
     }
 
     const data = getScenariosData();
+    const MERGED_FOLDER_PATH = '/Объединенные/';
+    const mergedFolderItems = data.structure[MERGED_FOLDER_PATH] || [];
+    const existingItem = mergedFolderItems.find(item => item.name === newName);
 
-    // Check if new name already exists
-    const currentItems = data.structure[currentPath] || [];
-    const existingItem = currentItems.find(item => item.name === newName);
 
     if (existingItem) {
-         if (existingItem.type === 'folder') {
-            showModal({ title: 'Ошибка', message: `Имя "${newName}" уже занято папкой в этой директории.`, status: 'error' });
-            return;
-        }
         showModal({
             title: 'Подтверждение',
-            message: `Сценарий "${newName}" уже существует. Перезаписать?`,
+            message: `Сценарий "${newName}" уже существует в папке "Объединенные". Перезаписать?`,
             type: 'confirm',
             status: 'warning',
             onConfirm: () => proceedWithMerge(newName, scenarioNames, data)
@@ -1931,66 +1959,80 @@ function executeMerge() {
 }
 
 function proceedWithMerge(newName, scenarioNames, data) {
-    let mergedKeyframes = [];
-    let firstScenario = null;
-    let keyframeCounter = 1;
+    const firstScenarioName = scenarioNames[0];
+    const firstScenarioData = data.scenarios[firstScenarioName];
 
-    for (const name of scenarioNames) {
-        const scenario = data.scenarios[name];
-        if (!scenario) continue;
-
-        if (!firstScenario) {
-            firstScenario = scenario;
-        }
-
-        if (scenario.animation && scenario.animation.keyframes) {
-            const renamedKeyframes = scenario.animation.keyframes.map(kf => {
-                const newKf = JSON.parse(JSON.stringify(kf));
-                newKf.name = `Шаг ${keyframeCounter++}: ${kf.name}`;
-                return newKf;
-            });
-            mergedKeyframes.push(...renamedKeyframes);
-        }
-    }
-
-    if (!firstScenario) {
-        showModal({ title: 'Ошибка', message: 'Не удалось загрузить данные первого сценария.', status: 'error' });
+    if (!firstScenarioData) {
+        showModal({ title: 'Ошибка', message: `Не удалось найти данные для сценария: ${firstScenarioName}`, status: 'error' });
         return;
     }
 
-    // Create the new merged scenario object
-    const mergedScenario = {
-        name: newName,
-        userId: userId,
-        timestamp: new Date().toISOString(),
-        thumbnail: firstScenario.thumbnail, // Use thumbnail of the first scenario
-        // DEEP COPY the initial state from the FIRST scenario
-        jugglers: JSON.parse(JSON.stringify(firstScenario.jugglers || [])),
-        cubes: JSON.parse(JSON.stringify(firstScenario.cubes || [])),
-        passes: JSON.parse(JSON.stringify(firstScenario.passes || [])),
-        animation: {
-            keyframes: mergedKeyframes,
-            speed: firstScenario.animation ? (firstScenario.animation.speed || 1.0) : 1.0
-        }
-    };
+    // Create a deep copy of the first scenario's data
+    const newScenarioData = JSON.parse(JSON.stringify(firstScenarioData));
 
-    data.scenarios[newName] = mergedScenario;
-    if (!data.structure[currentPath].some(item => item.name === newName)) {
-        data.structure[currentPath].push({ type: 'scenario', name: newName });
+    // Assign the new name and a new timestamp
+    newScenarioData.name = newName;
+    newScenarioData.timestamp = new Date().toISOString();
+
+    // Merge keyframes from all selected scenarios
+    const mergedKeyframes = [];
+    
+    scenarioNames.forEach((scenarioName) => {
+        const scenario = data.scenarios[scenarioName];
+        if (scenario && scenario.animation && scenario.animation.keyframes) {
+            // Add all keyframes from this scenario
+            scenario.animation.keyframes.forEach((kf, index) => {
+                const keyframeCopy = JSON.parse(JSON.stringify(kf));
+                // Update keyframe name to include source scenario
+                keyframeCopy.name = `${scenarioName} - ${kf.name || 'Кадр ' + (index + 1)}`;
+                // Generate new unique ID for merged keyframe
+                keyframeCopy.id = Date.now() + Math.random();
+                mergedKeyframes.push(keyframeCopy);
+            });
+        }
+    });
+
+    // Update the animation data with merged keyframes
+    if (mergedKeyframes.length > 0) {
+        newScenarioData.animation = {
+            keyframes: mergedKeyframes,
+            speed: firstScenarioData.animation ? firstScenarioData.animation.speed : 1.0
+        };
+    } else {
+        // No animation data in any scenario
+        newScenarioData.animation = { keyframes: [], speed: 1.0 };
+    }
+
+    const MERGED_FOLDER_PATH = '/Объединенные/';
+
+    // Ensure the "Объединенные" folder exists
+    if (!data.structure[MERGED_FOLDER_PATH]) {
+        data.structure[MERGED_FOLDER_PATH] = [];
+        if (!data.structure['/'].some(item => item.type === 'folder' && item.name === 'Объединенные')) {
+            data.structure['/'].push({ type: 'folder', name: 'Объединенные' });
+        }
+    }
+
+    // Add the new scenario data
+    data.scenarios[newName] = newScenarioData;
+
+    // Remove from other locations if it exists (overwrite case)
+    for (const path in data.structure) {
+        const index = data.structure[path].findIndex(item => item.name === newName && item.type === 'scenario');
+        if (index !== -1) {
+            data.structure[path].splice(index, 1);
+        }
+    }
+    
+    // Add reference to the "Объединенные" folder
+    if (!data.structure[MERGED_FOLDER_PATH].some(item => item.name === newName)) {
+        data.structure[MERGED_FOLDER_PATH].push({ type: 'scenario', name: newName });
     }
 
     saveScenariosData(data);
     updateScenarioGallery();
     closeMergeModal();
-
-    showModal({
-        title: 'Успех!',
-        message: `Сценарии объединены в новый сценарий "${newName}".`,
-        status: 'success',
-        onConfirm: () => {
-            loadScenario(newName);
-        }
-    });
+    showModal({ title: 'Успех', message: `Сценарий "${newName}" сохранен в папку "Объединенные" с объединенными анимациями из ${scenarioNames.length} сценариев (всего ${mergedKeyframes.length} кадров).`, status: 'success' });
 }
 
 
