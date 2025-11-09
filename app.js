@@ -2052,6 +2052,63 @@ function addKeyframe() {
     showModal({ title: 'Кадр добавлен', message: `Ключевой кадр "${keyframe.name}" добавлен!`, status: 'success' });
 }
 
+function renumberKeyframes() {
+    keyframes.forEach((kf, index) => {
+        // Only renumber if the name follows the default pattern
+        if (kf.name.match(/^Кадр \d+$/)) {
+            kf.name = `Кадр ${index + 1}`;
+        }
+    });
+}
+
+function insertKeyframeAfter(index) {
+    if (isAnimating) {
+        showModal({ title: 'Анимация активна', message: 'Остановите анимацию для добавления кадров.', status: 'warning' });
+        return;
+    }
+    
+    const keyframe = {
+        id: Date.now(),
+        name: `Кадр ${index + 2}`, // Will be renumbered
+        objects: {
+            jugglers: jugglers.map(j => ({ id: j.userData.id, x: j.position.x, y: j.position.y, z: j.position.z, rotationX: j.rotation.x, rotationY: j.rotation.y, visible: j.visible })),
+            cubes: cubes.map(c => ({ id: c.userData.id, x: c.position.x, y: c.position.y, z: c.position.z, rotationX: c.rotation.x, rotationY: c.rotation.y, rotationZ: c.rotation.z, width: c.userData.width, height: c.userData.height, depth: c.userData.depth, visible: c.visible })),
+            passes: passes.map(p => ({ id: p.userData.id, juggler1Id: p.userData.juggler1.userData.id, juggler2Id: p.userData.juggler2.userData.id, count: p.userData.count, color: p.userData.color, height: p.userData.height, visible: p.visible }))
+        }
+    };
+    
+    // Insert after the specified index
+    keyframes.splice(index + 1, 0, keyframe);
+    renumberKeyframes();
+    currentKeyframe = index + 1;
+    updateKeyframesList();
+    showModal({ title: 'Кадр вставлен', message: `Ключевой кадр вставлен после кадра ${index + 1}!`, status: 'success' });
+}
+
+function insertKeyframeAtBeginning() {
+    if (isAnimating) {
+        showModal({ title: 'Анимация активна', message: 'Остановите анимацию для добавления кадров.', status: 'warning' });
+        return;
+    }
+    
+    const keyframe = {
+        id: Date.now(),
+        name: `Кадр 1`, // Will be renumbered
+        objects: {
+            jugglers: jugglers.map(j => ({ id: j.userData.id, x: j.position.x, y: j.position.y, z: j.position.z, rotationX: j.rotation.x, rotationY: j.rotation.y, visible: j.visible })),
+            cubes: cubes.map(c => ({ id: c.userData.id, x: c.position.x, y: c.position.y, z: c.position.z, rotationX: c.rotation.x, rotationY: c.rotation.y, rotationZ: c.rotation.z, width: c.userData.width, height: c.userData.height, depth: c.userData.depth, visible: c.visible })),
+            passes: passes.map(p => ({ id: p.userData.id, juggler1Id: p.userData.juggler1.userData.id, juggler2Id: p.userData.juggler2.userData.id, count: p.userData.count, color: p.userData.color, height: p.userData.height, visible: p.visible }))
+        }
+    };
+    
+    // Insert at the beginning
+    keyframes.unshift(keyframe);
+    renumberKeyframes();
+    currentKeyframe = 0;
+    updateKeyframesList();
+    showModal({ title: 'Кадр вставлен', message: 'Ключевой кадр вставлен в начало!', status: 'success' });
+}
+
 // ...
 
 function clearKeyframes(suppressConfirmation = false) {
@@ -2078,6 +2135,7 @@ function clearKeyframes(suppressConfirmation = false) {
 
 function deleteKeyframe(keyframeId) {
     keyframes = keyframes.filter(kf => kf.id !== keyframeId);
+    renumberKeyframes();
     if (keyframes.length === 0) stopAnimation();
     updateKeyframesList();
 }
@@ -2086,11 +2144,24 @@ function updateKeyframesList() {
     const list = document.getElementById('keyframes-list');
     if (!list) return;
     list.innerHTML = '';
+    
+    // Add button to insert at beginning if there are keyframes
+    if (keyframes.length > 0) {
+        const insertAtStart = document.createElement('div');
+        insertAtStart.style.cssText = 'text-align: center; padding: 5px; margin-bottom: 5px;';
+        insertAtStart.innerHTML = `<button class="keyframe-insert" onclick="insertKeyframeAtBeginning()" style="width: auto; padding: 5px 10px;" title="Вставить кадр в начало">+ В начало</button>`;
+        list.appendChild(insertAtStart);
+    }
+    
     keyframes.forEach((keyframe, index) => {
         const item = document.createElement('div');
         item.className = 'keyframe-item';
         if (index === currentKeyframe && isAnimating) item.classList.add('active');
-        item.innerHTML = `<span onclick="goToKeyframe(${index})" style="cursor: pointer; flex: 1;">${keyframe.name}</span><button class="keyframe-delete" onclick="deleteKeyframe(${keyframe.id})">×</button>`;
+        item.innerHTML = `
+            <span onclick="goToKeyframe(${index})" style="cursor: pointer; flex: 1;">${keyframe.name}</span>
+            <button class="keyframe-insert" onclick="insertKeyframeAfter(${index})" title="Вставить кадр после">+</button>
+            <button class="keyframe-delete" onclick="deleteKeyframe(${keyframe.id})" title="Удалить кадр">×</button>
+        `;
         list.appendChild(item);
     });
 }
