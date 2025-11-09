@@ -869,6 +869,7 @@ function clearAll(suppressConfirmation = false) {
         passes = [];
         keyframes = [];
         updateKeyframesList();
+        hideAnimationPlayer();
         if (typeof syncFields === 'function') {
             syncFields();
         }
@@ -1093,7 +1094,173 @@ function loadScenario(scenarioName) {
     }
 
     checkPassIntersections();
+    
+    // Show animation player if there are keyframes
+    if (keyframes.length >= 2) {
+        showAnimationPlayer();
+    } else {
+        hideAnimationPlayer();
+    }
+    
     showModal({ title: 'Загрузка завершена', message: `Сценарий "${scenarioName}" загружен!`, status: 'success' });
+}
+
+// ========================================
+// Animation Player Functions
+// ========================================
+let playerAnimationProgress = 0;
+let isPlayerDragging = false;
+
+function showAnimationPlayer() {
+    const player = document.getElementById('animation-player');
+    if (player) {
+        player.style.display = 'block';
+        updatePlayerUI();
+        setupPlayerControls();
+    }
+}
+
+function hideAnimationPlayer() {
+    const player = document.getElementById('animation-player');
+    if (player) {
+        player.style.display = 'none';
+    }
+}
+
+function setupPlayerControls() {
+    const progressSlider = document.getElementById('animation-progress');
+    if (progressSlider && !progressSlider.dataset.initialized) {
+        progressSlider.dataset.initialized = 'true';
+        
+        // Mouse events
+        progressSlider.addEventListener('mousedown', () => {
+            isPlayerDragging = true;
+        });
+        
+        progressSlider.addEventListener('mouseup', () => {
+            isPlayerDragging = false;
+        });
+        
+        // Touch events
+        progressSlider.addEventListener('touchstart', () => {
+            isPlayerDragging = true;
+        });
+        
+        progressSlider.addEventListener('touchend', () => {
+            isPlayerDragging = false;
+        });
+        
+        progressSlider.addEventListener('input', (e) => {
+            if (isPlayerDragging) {
+                const progress = parseFloat(e.target.value);
+                seekToProgress(progress);
+            }
+        });
+        
+        // Change event for final value after dragging
+        progressSlider.addEventListener('change', (e) => {
+            const progress = parseFloat(e.target.value);
+            seekToProgress(progress);
+        });
+    }
+}
+
+function updatePlayerUI() {
+    const currentKfDisplay = document.getElementById('current-keyframe');
+    const totalKfDisplay = document.getElementById('total-keyframes');
+    const progressSlider = document.getElementById('animation-progress');
+    const playIcon = document.getElementById('play-icon');
+    const pauseIcon = document.getElementById('pause-icon');
+    
+    if (currentKfDisplay) currentKfDisplay.textContent = currentKeyframe + 1;
+    if (totalKfDisplay) totalKfDisplay.textContent = keyframes.length;
+    
+    if (keyframes.length > 0 && progressSlider) {
+        const progress = ((currentKeyframe) / (keyframes.length - 1)) * 100;
+        progressSlider.value = progress;
+        progressSlider.style.setProperty('--progress', progress + '%');
+    }
+    
+    if (playIcon && pauseIcon) {
+        if (isAnimating) {
+            playIcon.style.display = 'none';
+            pauseIcon.style.display = 'inline';
+        } else {
+            playIcon.style.display = 'inline';
+            pauseIcon.style.display = 'none';
+        }
+    }
+}
+
+function toggleAnimationPlayback() {
+    if (keyframes.length < 2) {
+        showModal({ title: 'Ошибка', message: 'Добавьте минимум 2 ключевых кадра для анимации.', status: 'error' });
+        return;
+    }
+    
+    if (isAnimating) {
+        pauseAnimationPlayer();
+    } else {
+        playAnimationPlayer();
+    }
+}
+
+function playAnimationPlayer() {
+    if (keyframes.length < 2) return;
+    
+    if (!isAnimating) {
+        isAnimating = true;
+        if (currentKeyframe >= keyframes.length - 1) {
+            currentKeyframe = 0;
+            applyKeyframeState(keyframes[0]);
+        }
+        animateToNextKeyframePlayer();
+    }
+    updatePlayerUI();
+}
+
+function pauseAnimationPlayer() {
+    isAnimating = false;
+    if (animationInterval) {
+        clearTimeout(animationInterval);
+        animationInterval = null;
+    }
+    updatePlayerUI();
+}
+
+function stopAnimationPlayer() {
+    isAnimating = false;
+    if (animationInterval) {
+        clearTimeout(animationInterval);
+        animationInterval = null;
+    }
+    currentKeyframe = 0;
+    applyKeyframeState(keyframes[0]);
+    updatePlayerUI();
+}
+
+function seekToProgress(progress) {
+    if (keyframes.length < 2) return;
+    
+    const targetIndex = Math.round((progress / 100) * (keyframes.length - 1));
+    currentKeyframe = Math.max(0, Math.min(targetIndex, keyframes.length - 1));
+    applyKeyframeState(keyframes[currentKeyframe]);
+    updatePlayerUI();
+}
+
+function animateToNextKeyframePlayer() {
+    if (!isAnimating || keyframes.length === 0) return;
+    
+    const nextIndex = (currentKeyframe + 1) % keyframes.length;
+    animateToKeyframeState(keyframes[nextIndex]);
+    
+    const duration = 1500 / animationSpeed;
+    
+    animationInterval = setTimeout(() => {
+        currentKeyframe = nextIndex;
+        updatePlayerUI();
+        animateToNextKeyframePlayer();
+    }, duration);
 }
 
 function deleteItem(name, type, event) {
@@ -2049,6 +2216,12 @@ function addKeyframe() {
     };
     keyframes.push(keyframe);
     updateKeyframesList();
+    
+    // Show player if we now have enough keyframes
+    if (keyframes.length >= 2) {
+        showAnimationPlayer();
+    }
+    
     showModal({ title: 'Кадр добавлен', message: `Ключевой кадр "${keyframe.name}" добавлен!`, status: 'success' });
 }
 
@@ -2082,6 +2255,12 @@ function insertKeyframeAfter(index) {
     renumberKeyframes();
     currentKeyframe = index + 1;
     updateKeyframesList();
+    
+    // Show player if we now have enough keyframes
+    if (keyframes.length >= 2) {
+        showAnimationPlayer();
+    }
+    
     showModal({ title: 'Кадр вставлен', message: `Ключевой кадр вставлен после кадра ${index + 1}!`, status: 'success' });
 }
 
@@ -2106,6 +2285,12 @@ function insertKeyframeAtBeginning() {
     renumberKeyframes();
     currentKeyframe = 0;
     updateKeyframesList();
+    
+    // Show player if we now have enough keyframes
+    if (keyframes.length >= 2) {
+        showAnimationPlayer();
+    }
+    
     showModal({ title: 'Кадр вставлен', message: 'Ключевой кадр вставлен в начало!', status: 'success' });
 }
 
@@ -2118,6 +2303,7 @@ function clearKeyframes(suppressConfirmation = false) {
         keyframes.length = 0;
         currentKeyframeIndex = -1;
         updateKeyframesList();
+        hideAnimationPlayer();
     };
 
     if (suppressConfirmation) {
@@ -2138,6 +2324,13 @@ function deleteKeyframe(keyframeId) {
     renumberKeyframes();
     if (keyframes.length === 0) stopAnimation();
     updateKeyframesList();
+    
+    // Hide player if not enough keyframes
+    if (keyframes.length < 2) {
+        hideAnimationPlayer();
+    } else {
+        updatePlayerUI();
+    }
 }
 
 function updateKeyframesList() {

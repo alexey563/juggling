@@ -923,6 +923,162 @@
         .juggler-animated {
             transition: all 0.5s ease-in-out;
         }
+
+        /* Animation Player Styles */
+        #animation-player {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(30, 30, 30, 0.95);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            padding: 15px 20px;
+            z-index: 600;
+            border-top: 2px solid #4CAF50;
+            box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        .player-controls {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .player-button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            font-size: 20px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            flex-shrink: 0;
+        }
+
+        .player-button:hover {
+            background: #45a049;
+            transform: scale(1.05);
+        }
+
+        .player-button:active {
+            transform: scale(0.95);
+        }
+
+        .player-button-small {
+            width: 40px;
+            height: 40px;
+            font-size: 16px;
+            background: #555;
+        }
+
+        .player-button-small:hover {
+            background: #666;
+        }
+
+        .player-progress-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .player-progress {
+            width: 100%;
+            height: 8px;
+            border-radius: 4px;
+            outline: none;
+            -webkit-appearance: none;
+            appearance: none;
+            background: #444;
+            cursor: pointer;
+        }
+
+        .player-progress::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #4CAF50;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .player-progress::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+            background: #45a049;
+        }
+
+        .player-progress::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #4CAF50;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s ease;
+        }
+
+        .player-progress::-moz-range-thumb:hover {
+            transform: scale(1.2);
+            background: #45a049;
+        }
+
+        .player-progress::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 8px;
+            border-radius: 4px;
+            background: linear-gradient(to right, #4CAF50 0%, #4CAF50 var(--progress, 0%), #444 var(--progress, 0%), #444 100%);
+        }
+
+        .player-progress::-moz-range-track {
+            width: 100%;
+            height: 8px;
+            border-radius: 4px;
+            background: #444;
+        }
+
+        .player-time {
+            color: #ccc;
+            font-size: 13px;
+            text-align: center;
+            font-family: monospace;
+        }
+
+        @media (max-width: 768px) {
+            #animation-player {
+                padding: 12px 15px;
+                padding-bottom: calc(12px + env(safe-area-inset-bottom));
+            }
+
+            .player-button {
+                width: 45px;
+                height: 45px;
+                font-size: 18px;
+            }
+
+            .player-button-small {
+                width: 35px;
+                height: 35px;
+                font-size: 14px;
+            }
+
+            .player-controls {
+                gap: 10px;
+            }
+
+            .player-time {
+                font-size: 11px;
+            }
+        }
     </style>
 </head>
 
@@ -955,6 +1111,23 @@
             <div id="panel-toggles">
                 <button class="panel-toggle" onclick="toggleLeftPanel()">📁</button>
                 <button class="panel-toggle" onclick="toggleRightPanel()">🔧</button>
+            </div>
+
+            <!-- Animation Player -->
+            <div id="animation-player" style="display: none;">
+                <div class="player-controls">
+                    <button id="play-pause-btn" class="player-button" onclick="toggleAnimationPlayback()">
+                        <span id="play-icon">▶</span>
+                        <span id="pause-icon" style="display: none;">⏸</span>
+                    </button>
+                    <div class="player-progress-container">
+                        <input type="range" id="animation-progress" class="player-progress" min="0" max="100" value="0" step="0.1">
+                        <div class="player-time">
+                            <span id="current-keyframe">1</span> / <span id="total-keyframes">1</span>
+                        </div>
+                    </div>
+                    <button class="player-button player-button-small" onclick="stopAnimationPlayer()" title="Остановить">⏹</button>
+                </div>
             </div>
 
             <div id="mobile-controls">
