@@ -937,6 +937,10 @@
             z-index: 600;
             border-top: 2px solid #4CAF50;
             box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.3);
+            transition: transform 0.3s ease-in-out;
+            -webkit-user-select: none; /* Safari */
+            -ms-user-select: none; /* IE 10+ */
+            user-select: none; /* Standard */
         }
 
         .player-controls {
@@ -1010,6 +1014,7 @@
             background: #4CAF50;
             cursor: pointer;
             transition: all 0.2s ease;
+            margin-top: -5px; /* Adjust vertical position */
         }
 
         .player-progress::-webkit-slider-thumb:hover {
@@ -1025,6 +1030,7 @@
             cursor: pointer;
             border: none;
             transition: all 0.2s ease;
+            margin-top: -5px; /* Adjust vertical position */
         }
 
         .player-progress::-moz-range-thumb:hover {

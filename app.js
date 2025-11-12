@@ -1250,35 +1250,96 @@ function togglePlayer() {
 }
 
 
+let isPlayerSliderDragging = false;
+
 function setupPlayerControls() {
     const progressSlider = document.getElementById('animation-progress');
     if (progressSlider && !progressSlider.dataset.initialized) {
         progressSlider.dataset.initialized = 'true';
-        
+
+        // Central logic for updating slider value from a coordinate
+        const handleMove = (clientX) => {
+            const sliderRect = progressSlider.getBoundingClientRect();
+            const x = clientX - sliderRect.left;
+            const percent = Math.max(0, Math.min(1, x / sliderRect.width));
+            
+            const min = parseFloat(progressSlider.min);
+            const max = parseFloat(progressSlider.max);
+            const newValue = min + (max - min) * percent;
+
+            progressSlider.value = newValue;
+            progressSlider.style.setProperty('--progress', percent * 100 + '%'); // Update fill visually
+            progressSlider.dispatchEvent(new Event('input', { 'bubbles': true }));
+        };
+
+        // Cleanup function to remove document-level listeners
+        const stopDrag = () => {
+            if (!isPlayerSliderDragging) return;
+            isPlayerSliderDragging = false;
+            document.removeEventListener('mousemove', onMouseMove);
+            document.removeEventListener('mouseup', onMouseUp);
+            document.removeEventListener('touchmove', onTouchMove);
+            document.removeEventListener('touchend', onTouchEnd);
+            // Snap the slider to the final keyframe position
+            updatePlayerSliderPosition();
+        };
+
+        // Define move/end handlers for mouse and touch
+        const onMouseMove = (e) => handleMove(e.clientX);
+        const onMouseUp = () => stopDrag();
+        const onTouchMove = (e) => handleMove(e.touches[0].clientX);
+        const onTouchEnd = () => stopDrag();
+
+        // Attach starting event listeners to the slider itself
+        progressSlider.addEventListener('mousedown', (e) => {
+            isPlayerSliderDragging = true;
+            e.stopPropagation();
+            document.addEventListener('mousemove', onMouseMove);
+            document.addEventListener('mouseup', onMouseUp);
+            handleMove(e.clientX);
+        });
+
+        progressSlider.addEventListener('touchstart', (e) => {
+            isPlayerSliderDragging = true;
+            e.stopPropagation();
+            e.preventDefault();
+            document.addEventListener('touchmove', onTouchMove);
+            document.addEventListener('touchend', onTouchEnd);
+            handleMove(e.touches[0].clientX);
+        });
+
+        // The 'input' event triggers the actual scene update
         progressSlider.addEventListener('input', (e) => {
-            pauseAnimationPlayer();
-            const progress = parseFloat(e.target.value);
+            const progress = parseFloat(progressSlider.value);
             seekToProgress(progress);
         });
     }
 }
 
-function updatePlayerUI() {
+function updatePlayerTexts() {
     const currentKfDisplay = document.getElementById('current-keyframe');
     const totalKfDisplay = document.getElementById('total-keyframes');
-    const progressSlider = document.getElementById('animation-progress');
-    const playIcon = document.getElementById('play-icon');
-    const pauseIcon = document.getElementById('pause-icon');
-    
     if (currentKfDisplay) currentKfDisplay.textContent = currentKeyframe + 1;
     if (totalKfDisplay) totalKfDisplay.textContent = keyframes.length;
-    
-    if (keyframes.length > 0 && progressSlider) {
+}
+
+function updatePlayerSliderPosition() {
+    if (isPlayerSliderDragging) return; // Do not fight with user input
+
+    const progressSlider = document.getElementById('animation-progress');
+    if (keyframes.length > 1 && progressSlider) {
         const progress = ((currentKeyframe) / (keyframes.length - 1)) * 100;
         progressSlider.value = progress;
         progressSlider.style.setProperty('--progress', progress + '%');
     }
-    
+}
+
+function updatePlayerUI() {
+    updatePlayerTexts();
+    updatePlayerSliderPosition();
+
+    const playIcon = document.getElementById('play-icon');
+    const pauseIcon = document.getElementById('pause-icon');
     if (playIcon && pauseIcon) {
         if (isAnimating) {
             playIcon.style.display = 'none';
@@ -1340,10 +1401,20 @@ function stopAnimationPlayer() {
 function seekToProgress(progress) {
     if (keyframes.length < 2) return;
     
+    pauseAnimationPlayer(); // Ensure animation is paused when seeking
+
     const targetIndex = Math.round((progress / 100) * (keyframes.length - 1));
     currentKeyframe = Math.max(0, Math.min(targetIndex, keyframes.length - 1));
+    
     applyKeyframeState(keyframes[currentKeyframe]);
-    updatePlayerUI();
+    
+    // Update the text part of the UI immediately during a drag
+    updatePlayerTexts();
+    
+    // Update the slider position only if not dragging (e.g., on playback)
+    if (!isPlayerSliderDragging) {
+        updatePlayerSliderPosition();
+    }
 }
 
 function animateToNextKeyframePlayer() {
@@ -1876,7 +1947,7 @@ togglePassMode = function () {
 };
 
 window.addEventListener('orientationchange', () => setTimeout(() => { detectMobile(); onWindowResize(); }, 100));
-document.addEventListener('touchmove', e => { if (e.scale !== 1) e.preventDefault(); }, { passive: false });
+
 
 function exportScenarios() {
     populateExportList();
