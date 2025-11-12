@@ -128,15 +128,16 @@ function init() {
 
 // Создание жонглёра
 // Создание жонглёра
-function createJuggler() {
+function createJuggler(name = '', color = '#4CAF50') {
     const group = new THREE.Group();
 
     // Тело (более правильная форма)
     const bodyGeometry = new THREE.CylinderGeometry(0.2, 0.25, 0.8, 12);
-    const bodyMaterial = new THREE.MeshLambertMaterial({ color: 0x4CAF50 });
+    const bodyMaterial = new THREE.MeshLambertMaterial({ color: color });
     const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
     body.position.y = 0.9;
     body.castShadow = true;
+    body.name = 'body'; // Assign name for easy access
     group.add(body);
 
     // Голова
@@ -248,16 +249,65 @@ function createJuggler() {
     group.userData = { 
         type: 'juggler', 
         id: 'juggler_' + Date.now() + Math.random().toString(36).substr(2, 9),
-        height: 1.6
+        height: 1.6,
+        name: name,
+        color: color
     };
+
+    if (name) {
+        const nameLabel = createNameLabel(name);
+        nameLabel.position.y = 1.8; // Position above the head
+        group.add(nameLabel);
+        group.userData.nameLabel = nameLabel;
+    }
+
     return group;
 }
 
+function createNameLabel(name) {
+    const canvas = document.createElement('canvas');
+    const context = canvas.getContext('2d');
+    const fontSize = 48;
+    context.font = `bold ${fontSize}px Arial`;
+    const textWidth = context.measureText(name).width;
+
+    canvas.width = textWidth + 20; // Add some padding
+    canvas.height = fontSize + 10;
+
+    // Re-set font after resizing canvas
+    context.font = `bold ${fontSize}px Arial`;
+    context.fillStyle = 'rgba(0, 0, 0, 0.5)';
+    context.fillRect(0, 0, canvas.width, canvas.height);
+
+    context.fillStyle = 'white';
+    context.textAlign = 'center';
+    context.textBaseline = 'middle';
+    context.fillText(name, canvas.width / 2, canvas.height / 2);
+
+    const texture = new THREE.CanvasTexture(canvas);
+    const spriteMaterial = new THREE.SpriteMaterial({ map: texture });
+    const sprite = new THREE.Sprite(spriteMaterial);
+
+    // Adjust scale based on canvas aspect ratio
+    const aspect = canvas.width / canvas.height;
+    sprite.scale.set(0.5 * aspect, 0.5, 1);
+
+    sprite.userData.type = 'nameLabel';
+    return sprite;
+}
+
 function addJuggler() {
-    const juggler = createJuggler();
-    juggler.position.set(Math.random() * 6 - 3, 0, Math.random() * 6 - 3);
-    scene.add(juggler);
-    jugglers.push(juggler);
+    showModal({
+        title: 'Добавить жонглёра',
+        type: 'prompt',
+        placeholder: 'Имя жонглёра (необязательно)',
+        onConfirm: (name) => {
+            const juggler = createJuggler(name.trim());
+            juggler.position.set(Math.random() * 6 - 3, 0, Math.random() * 6 - 3);
+            scene.add(juggler);
+            jugglers.push(juggler);
+        }
+    });
 }
 
 function addCube() {
@@ -713,6 +763,17 @@ function clearSelection() {
 }
 
 function updateUI() {
+    const jugglerEditor = document.getElementById('juggler-editor');
+    if (selectedObjects.length === 1 && selectedObjects[0].userData.type === 'juggler') {
+        const juggler = selectedObjects[0];
+        document.getElementById('jugglerName').value = juggler.userData.name || '';
+        document.getElementById('jugglerColor').value = juggler.userData.color || '#4CAF50';
+        jugglerEditor.style.display = 'block';
+    } else {
+        jugglerEditor.style.display = 'none';
+    }
+
+
     if (selectedObjects.length === 1) {
         const object = selectedObjects[0];
         let degreesY = Math.round((((object.rotation.y * 180 / Math.PI) % 360) + 360) % 360 / 45) * 45;
@@ -724,6 +785,59 @@ function updateUI() {
         document.getElementById('rotationX').value = '';
     }
 }
+
+function updateSelectedJuggler() {
+    if (selectedObjects.length !== 1 || selectedObjects[0].userData.type !== 'juggler') return;
+
+    const juggler = selectedObjects[0];
+    const jugglerId = juggler.userData.id;
+    const newName = document.getElementById('jugglerName').value.trim();
+    const newColor = document.getElementById('jugglerColor').value;
+
+    // 1. Update the current juggler object in the scene
+    updateJugglerName(juggler, newName);
+    updateJugglerColor(juggler, newColor);
+
+    // 2. Propagate these changes to all keyframes
+    keyframes.forEach(kf => {
+        if (kf.objects && kf.objects.jugglers) {
+            const jugglerDataInKeyframe = kf.objects.jugglers.find(j => j.id === jugglerId);
+            if (jugglerDataInKeyframe) {
+                jugglerDataInKeyframe.name = newName;
+                jugglerDataInKeyframe.color = newColor;
+            }
+        }
+    });
+    
+    showModal({ title: 'Обновлено', message: 'Имя и цвет жонглёра обновлены во всей анимации.', status: 'success' });
+}
+
+function updateJugglerName(juggler, newName) {
+    // Remove existing label if it exists
+    if (juggler.userData.nameLabel) {
+        juggler.remove(juggler.userData.nameLabel);
+        juggler.userData.nameLabel = null;
+    }
+
+    juggler.userData.name = newName;
+
+    // Add new label if there is a name
+    if (newName) {
+        const nameLabel = createNameLabel(newName);
+        nameLabel.position.y = 1.8;
+        juggler.add(nameLabel);
+        juggler.userData.nameLabel = nameLabel;
+    }
+}
+
+function updateJugglerColor(juggler, newColor) {
+    const body = juggler.getObjectByName('body');
+    if (body && body.isMesh) {
+        body.material.color.set(newColor);
+    }
+    juggler.userData.color = newColor;
+}
+
 
 function updateSelectedRotation() {
     if (selectedObjects.length === 1) {
@@ -1001,10 +1115,10 @@ function saveScenario() {
             userId: userId,
             timestamp: new Date().toISOString(),
             thumbnail: thumbnail,
-            jugglers: jugglers.map(j => ({ id: j.userData.id, position: j.position, rotation: j.rotation })),
+            jugglers: jugglers.map(j => ({ id: j.userData.id, position: j.position, rotation: j.rotation, name: j.userData.name, color: j.userData.color })),
             cubes: cubes.map(c => ({ id: c.userData.id, position: c.position, rotation: c.rotation, dimensions: { width: c.userData.width, height: c.userData.height, depth: c.userData.depth } })),
             passes: passes.map(p => ({ id: p.userData.id, juggler1Id: p.userData.juggler1.userData.id, juggler2Id: p.userData.juggler2.userData.id, count: p.userData.count, color: p.userData.color, height: p.userData.height })),
-            animation: { keyframes: keyframes.map(kf => ({ id: kf.id, name: kf.name, objects: kf.objects, positions: kf.positions })), speed: animationSpeed }
+            animation: { keyframes: keyframes.map(kf => ({ id: kf.id, name: kf.name, objects: kf.objects })), speed: animationSpeed }
         };
 
         data.scenarios[scenarioName] = scenario;
@@ -1052,7 +1166,7 @@ function loadScenario(scenarioName) {
     renderer.render(scene, camera); // Force a render after clearing
 
     scenario.jugglers.forEach(jData => {
-        const juggler = createJuggler();
+        const juggler = createJuggler(jData.name, jData.color);
         juggler.userData.id = jData.id;
         juggler.position.copy(jData.position);
         if (jData.rotation) {
@@ -1115,6 +1229,8 @@ function showAnimationPlayer() {
     const player = document.getElementById('animation-player');
     if (player) {
         player.style.display = 'block';
+        document.body.classList.add('animation-player-active');
+        player.classList.remove('minimized');
         updatePlayerUI();
         setupPlayerControls();
     }
@@ -1124,41 +1240,23 @@ function hideAnimationPlayer() {
     const player = document.getElementById('animation-player');
     if (player) {
         player.style.display = 'none';
+        document.body.classList.remove('animation-player-active');
     }
 }
+
+function togglePlayer() {
+    const player = document.getElementById('animation-player');
+    player.classList.toggle('minimized');
+}
+
 
 function setupPlayerControls() {
     const progressSlider = document.getElementById('animation-progress');
     if (progressSlider && !progressSlider.dataset.initialized) {
         progressSlider.dataset.initialized = 'true';
         
-        // Mouse events
-        progressSlider.addEventListener('mousedown', () => {
-            isPlayerDragging = true;
-        });
-        
-        progressSlider.addEventListener('mouseup', () => {
-            isPlayerDragging = false;
-        });
-        
-        // Touch events
-        progressSlider.addEventListener('touchstart', () => {
-            isPlayerDragging = true;
-        });
-        
-        progressSlider.addEventListener('touchend', () => {
-            isPlayerDragging = false;
-        });
-        
         progressSlider.addEventListener('input', (e) => {
-            if (isPlayerDragging) {
-                const progress = parseFloat(e.target.value);
-                seekToProgress(progress);
-            }
-        });
-        
-        // Change event for final value after dragging
-        progressSlider.addEventListener('change', (e) => {
+            pauseAnimationPlayer();
             const progress = parseFloat(e.target.value);
             seekToProgress(progress);
         });
@@ -2209,7 +2307,7 @@ function addKeyframe() {
         id: Date.now(),
         name: `Кадр ${keyframes.length + 1}`,
         objects: {
-            jugglers: jugglers.map(j => ({ id: j.userData.id, x: j.position.x, y: j.position.y, z: j.position.z, rotationX: j.rotation.x, rotationY: j.rotation.y, visible: j.visible })),
+            jugglers: jugglers.map(j => ({ id: j.userData.id, x: j.position.x, y: j.position.y, z: j.position.z, rotationX: j.rotation.x, rotationY: j.rotation.y, visible: j.visible, name: j.userData.name, color: j.userData.color })),
             cubes: cubes.map(c => ({ id: c.userData.id, x: c.position.x, y: c.position.y, z: c.position.z, rotationX: c.rotation.x, rotationY: c.rotation.y, rotationZ: c.rotation.z, width: c.userData.width, height: c.userData.height, depth: c.userData.depth, visible: c.visible })),
             passes: passes.map(p => ({ id: p.userData.id, juggler1Id: p.userData.juggler1.userData.id, juggler2Id: p.userData.juggler2.userData.id, count: p.userData.count, color: p.userData.color, height: p.userData.height, visible: p.visible }))
         }
@@ -2244,7 +2342,7 @@ function insertKeyframeAfter(index) {
         id: Date.now(),
         name: `Кадр ${index + 2}`, // Will be renumbered
         objects: {
-            jugglers: jugglers.map(j => ({ id: j.userData.id, x: j.position.x, y: j.position.y, z: j.position.z, rotationX: j.rotation.x, rotationY: j.rotation.y, visible: j.visible })),
+            jugglers: jugglers.map(j => ({ id: j.userData.id, x: j.position.x, y: j.position.y, z: j.position.z, rotationX: j.rotation.x, rotationY: j.rotation.y, visible: j.visible, name: j.userData.name, color: j.userData.color })),
             cubes: cubes.map(c => ({ id: c.userData.id, x: c.position.x, y: c.position.y, z: c.position.z, rotationX: c.rotation.x, rotationY: c.rotation.y, rotationZ: c.rotation.z, width: c.userData.width, height: c.userData.height, depth: c.userData.depth, visible: c.visible })),
             passes: passes.map(p => ({ id: p.userData.id, juggler1Id: p.userData.juggler1.userData.id, juggler2Id: p.userData.juggler2.userData.id, count: p.userData.count, color: p.userData.color, height: p.userData.height, visible: p.visible }))
         }
@@ -2274,7 +2372,7 @@ function insertKeyframeAtBeginning() {
         id: Date.now(),
         name: `Кадр 1`, // Will be renumbered
         objects: {
-            jugglers: jugglers.map(j => ({ id: j.userData.id, x: j.position.x, y: j.position.y, z: j.position.z, rotationX: j.rotation.x, rotationY: j.rotation.y, visible: j.visible })),
+            jugglers: jugglers.map(j => ({ id: j.userData.id, x: j.position.x, y: j.position.y, z: j.position.z, rotationX: j.rotation.x, rotationY: j.rotation.y, visible: j.visible, name: j.userData.name, color: j.userData.color })),
             cubes: cubes.map(c => ({ id: c.userData.id, x: c.position.x, y: c.position.y, z: c.position.z, rotationX: c.rotation.x, rotationY: c.rotation.y, rotationZ: c.rotation.z, width: c.userData.width, height: c.userData.height, depth: c.userData.depth, visible: c.visible })),
             passes: passes.map(p => ({ id: p.userData.id, juggler1Id: p.userData.juggler1.userData.id, juggler2Id: p.userData.juggler2.userData.id, count: p.userData.count, color: p.userData.color, height: p.userData.height, visible: p.visible }))
         }
@@ -2381,7 +2479,7 @@ function updateCurrentKeyframe() {
         id: keyframes[currentKeyframe].id,
         name: keyframes[currentKeyframe].name,
         objects: {
-            jugglers: jugglers.map(j => ({ id: j.userData.id, x: j.position.x, y: j.position.y, z: j.position.z, rotationX: j.rotation.x, rotationY: j.rotation.y, visible: j.visible })),
+            jugglers: jugglers.map(j => ({ id: j.userData.id, x: j.position.x, y: j.position.y, z: j.position.z, rotationX: j.rotation.x, rotationY: j.rotation.y, visible: j.visible, name: j.userData.name, color: j.userData.color })),
             cubes: cubes.map(c => ({ id: c.userData.id, x: c.position.x, y: c.position.y, z: c.position.z, rotationX: c.rotation.x, rotationY: c.rotation.y, rotationZ: c.rotation.z, width: c.userData.width, height: c.userData.height, depth: c.userData.depth, visible: c.visible })),
             passes: passes.map(p => ({ id: p.userData.id, juggler1Id: p.userData.juggler1.userData.id, juggler2Id: p.userData.juggler2.userData.id, count: p.userData.count, color: p.userData.color, height: p.userData.height, visible: p.visible }))
         }
@@ -2453,7 +2551,7 @@ function applyNewKeyframeState(keyframe) {
     cubes.length = 0;
     passes.length = 0;
     keyframe.objects.jugglers.forEach(jData => {
-        const juggler = createJuggler();
+        const juggler = createJuggler(jData.name, jData.color);
         juggler.userData.id = jData.id;
         juggler.position.set(jData.x, jData.y, jData.z);
         juggler.rotation.set(jData.rotationX || 0, jData.rotationY || 0, 0);
@@ -2488,13 +2586,17 @@ function animateToNewKeyframeState(keyframe) {
     keyframe.objects.jugglers.forEach(jData => {
         let juggler = jugglers.find(j => j.userData.id === jData.id);
         if (!juggler) {
-            juggler = createJuggler();
+            juggler = createJuggler(jData.name, jData.color);
             juggler.userData.id = jData.id;
             juggler.position.set(jData.x, jData.y, jData.z);
             juggler.rotation.set(jData.rotationX || 0, jData.rotationY || 0, 0);
             scene.add(juggler);
             jugglers.push(juggler);
         } else {
+            // Update name and color instantly
+            updateJugglerName(juggler, jData.name);
+            updateJugglerColor(juggler, jData.color);
+            // Animate position and rotation
             animateObjectToState(juggler, jData);
         }
     });

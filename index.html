@@ -1053,30 +1053,59 @@
             font-family: monospace;
         }
 
+        #toggle-player-btn {
+            position: absolute;
+            top: -30px;
+            right: 20px;
+            background: #3a3a3a;
+            color: white;
+            border: 2px solid #4CAF50;
+            border-bottom: none;
+            border-radius: 10px 10px 0 0;
+            width: 80px;
+            height: 30px;
+            font-size: 24px;
+            cursor: pointer;
+            z-index: 599;
+            line-height: 25px;
+            transition: background-color 0.3s ease-in-out;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        #toggle-player-btn span {
+            transition: transform 0.3s ease-in-out;
+            display: block;
+        }
+
+        #animation-player.minimized {
+            transform: translateY(100%);
+        }
+        
+        #animation-player.minimized #toggle-player-btn {
+            background-color: #4CAF50;
+        }
+        #animation-player.minimized #toggle-player-btn span {
+            transform: rotate(180deg);
+        }
+
+        body.animation-player-active #mobile-controls {
+            padding-bottom: 100px; /* Adjust as needed */
+        }
+
         @media (max-width: 768px) {
             #animation-player {
                 padding: 12px 15px;
                 padding-bottom: calc(12px + env(safe-area-inset-bottom));
+                transition: transform 0.3s ease-in-out;
+            }
+            
+            body.animation-player-active #mobile-controls {
+                padding-bottom: 80px; /* Space for the minimized player */
             }
 
-            .player-button {
-                width: 45px;
-                height: 45px;
-                font-size: 18px;
-            }
-
-            .player-button-small {
-                width: 35px;
-                height: 35px;
-                font-size: 14px;
-            }
-
-            .player-controls {
-                gap: 10px;
-            }
-
-            .player-time {
-                font-size: 11px;
+            #animation-player.minimized {
+                 transform: translateY(calc(100% - env(safe-area-inset-bottom)));
             }
         }
     </style>
@@ -1115,6 +1144,7 @@
 
             <!-- Animation Player -->
             <div id="animation-player" style="display: none;">
+                <button id="toggle-player-btn" onclick="togglePlayer()"><span>▼</span></button>
                 <div class="player-controls">
                     <button id="play-pause-btn" class="player-button" onclick="toggleAnimationPlayback()">
                         <span id="play-icon">▶</span>
@@ -1157,8 +1187,6 @@
                     <button class="mobile-button" onclick="rotateSelectedRight('x')">↻ X</button>
                 </div>
                 <div class="mobile-button-row">
-                    <button class="mobile-button" id="mobile-animation-toggle" onclick="toggleAnimation()">▶
-                        Анимация</button>
                     <button class="mobile-button" onclick="addKeyframe()">📍 Кадр</button>
                     <button class="mobile-button" onclick="updateCurrentKeyframe()">🔄 Обновить</button>
                 </div>
@@ -1196,6 +1224,19 @@
                 <button class="button" onclick="clearAll()">Очистить всё</button>
             </div>
 
+            <div id="juggler-editor" class="section" style="display: none;">
+                <h3>Редактор жонглёра</h3>
+                <div class="control-group">
+                    <label for="jugglerName">Имя:</label>
+                    <input type="text" id="jugglerName" placeholder="Введите имя">
+                </div>
+                <div class="control-group">
+                    <label for="jugglerColor">Цвет тела:</label>
+                    <input type="color" id="jugglerColor" value="#4CAF50">
+                </div>
+                <button class="button" onclick="updateSelectedJuggler()">Применить</button>
+            </div>
+
             <div class="section">
                 <h3>Анимация</h3>
                 <div class="control-group">
@@ -1203,7 +1244,6 @@
                     <input type="range" id="animationSpeed" min="0.5" max="3" step="0.1" value="1">
                     <span id="speedValue">1.0x</span>
                 </div>
-                <button class="button" id="animation-toggle" onclick="toggleAnimation()">▶ Запустить анимацию</button>
                 <button class="button" onclick="addKeyframe()">📍 Добавить ключевой кадр</button>
                 <button class="button" onclick="updateCurrentKeyframe()">🔄 Обновить кадр</button>
                 <button class="button" onclick="clearKeyframes()">🗑️ Очистить анимацию</button>
