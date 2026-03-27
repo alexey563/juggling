@@ -149,7 +149,7 @@ function createJuggler(name = '', color = '#4CAF50') {
 
     // Плечи
     const shoulderGeometry = new THREE.CylinderGeometry(0.05, 0.05, 0.5, 8);
-    const shoulderMaterial = new THREE.MeshLambertMaterial({ color: 0x4CAF50 });
+    const shoulderMaterial = new THREE.MeshBasicMaterial({ color: 0x4CAF50 });
     const shoulders = new THREE.Mesh(shoulderGeometry, shoulderMaterial);
     shoulders.position.y = 1.25;
     shoulders.rotation.z = Math.PI / 2;
@@ -296,7 +296,28 @@ function addCube() {
     const geometry = new THREE.BoxGeometry(width, height, depth);
     const defaultColor = '#ff9800';
     const sideColors = Array(6).fill(defaultColor);
-    const materials = sideColors.map(color => new THREE.MeshLambertMaterial({ color }));
+    const materials = sideColors.map((color, i) => {
+        // Create a canvas for the front face (+Z is index 4 in THREE.BoxGeometry)
+        if (i === 4) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 128;
+            canvas.height = 128;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = color;
+            ctx.fillRect(0, 0, 128, 128);
+            ctx.fillStyle = 'white';
+            ctx.font = 'bold 40px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('FRONT', 64, 64);
+            ctx.strokeStyle = 'black';
+            ctx.lineWidth = 4;
+            ctx.strokeText('FRONT', 64, 64);
+            const texture = new THREE.CanvasTexture(canvas);
+            return new THREE.MeshBasicMaterial({ map: texture });
+        }
+        return new THREE.MeshBasicMaterial({ color });
+    });
     
     const cube = new THREE.Mesh(geometry, materials);
     cube.position.set(Math.random() * 6 - 3, height / 2, Math.random() * 6 - 3);
@@ -311,7 +332,28 @@ function createCubeFromData(cubeData) {
     const geometry = new THREE.BoxGeometry(cubeData.width, cubeData.height, cubeData.depth);
     
     const sideColors = cubeData.sideColors || Array(6).fill(cubeData.color || '#ff9800');
-    const materials = sideColors.map(color => new THREE.MeshLambertMaterial({ color }));
+    const materials = sideColors.map((color, i) => {
+        // Create a canvas for the front face (+Z is index 4 in THREE.BoxGeometry)
+        if (i === 4) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 128;
+            canvas.height = 128;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = color;
+            ctx.fillRect(0, 0, 128, 128);
+            ctx.fillStyle = 'white';
+            ctx.font = 'bold 40px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('FRONT', 64, 64);
+            ctx.strokeStyle = 'black';
+            ctx.lineWidth = 4;
+            ctx.strokeText('FRONT', 64, 64);
+            const texture = new THREE.CanvasTexture(canvas);
+            return new THREE.MeshBasicMaterial({ map: texture });
+        }
+        return new THREE.MeshBasicMaterial({ color });
+    });
     
     const cube = new THREE.Mesh(geometry, materials);
 
@@ -364,12 +406,38 @@ function updateSelectedCubeColors() {
 function updateCubeColors(cube, colors) {
     if (!Array.isArray(cube.material)) {
         // Convert single material to array if needed
-        const oldColor = cube.material.color.getHex();
-        cube.material = Array(6).fill(0).map(() => new THREE.MeshLambertMaterial({ color: oldColor }));
+        cube.material = Array(6).fill(0).map(() => new THREE.MeshBasicMaterial());
     }
     
     for (let i = 0; i < 6; i++) {
-        cube.material[i].color.set(colors[i]);
+        if (i === 4) {
+            // Redraw FRONT label on new background color
+            const canvas = document.createElement('canvas');
+            canvas.width = 128;
+            canvas.height = 128;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = colors[i];
+            ctx.fillRect(0, 0, 128, 128);
+            ctx.fillStyle = 'white';
+            ctx.font = 'bold 40px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('FRONT', 64, 64);
+            ctx.strokeStyle = 'black';
+            ctx.lineWidth = 4;
+            ctx.strokeText('FRONT', 64, 64);
+            
+            if (cube.material[i].map) cube.material[i].map.dispose();
+            cube.material[i].map = new THREE.CanvasTexture(canvas);
+            cube.material[i].color.set(0xffffff); // Ensure white so texture shows correctly
+        } else {
+            cube.material[i].color.set(colors[i]);
+            if (cube.material[i].map) {
+                cube.material[i].map.dispose();
+                cube.material[i].map = null;
+            }
+        }
+        cube.material[i].needsUpdate = true;
     }
     cube.userData.sideColors = [...colors];
 }
