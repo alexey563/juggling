@@ -136,7 +136,6 @@ function createJuggler(name = '', color = '#4CAF50') {
     const bodyMaterial = new THREE.MeshLambertMaterial({ color: color });
     const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
     body.position.y = 0.9;
-    body.castShadow = true;
     body.name = 'body'; // Assign name for easy access
     group.add(body);
 
@@ -145,7 +144,6 @@ function createJuggler(name = '', color = '#4CAF50') {
     const headMaterial = new THREE.MeshLambertMaterial({ color: 0xffdbac });
     const head = new THREE.Mesh(headGeometry, headMaterial);
     head.position.y = 1.45;
-    head.castShadow = true;
     group.add(head);
 
     // Шея
@@ -153,7 +151,6 @@ function createJuggler(name = '', color = '#4CAF50') {
     const neckMaterial = new THREE.MeshLambertMaterial({ color: 0xffdbac });
     const neck = new THREE.Mesh(neckGeometry, neckMaterial);
     neck.position.y = 1.35;
-    neck.castShadow = true;
     group.add(neck);
 
     // Плечи
@@ -162,7 +159,6 @@ function createJuggler(name = '', color = '#4CAF50') {
     const shoulders = new THREE.Mesh(shoulderGeometry, shoulderMaterial);
     shoulders.position.y = 1.25;
     shoulders.rotation.z = Math.PI / 2;
-    shoulders.castShadow = true;
     group.add(shoulders);
 
     // Руки (верхняя часть)
@@ -171,12 +167,10 @@ function createJuggler(name = '', color = '#4CAF50') {
 
     const leftUpperArm = new THREE.Mesh(upperArmGeometry, armMaterial);
     leftUpperArm.position.set(-0.3, 1.05, 0);
-    leftUpperArm.castShadow = true;
     group.add(leftUpperArm);
 
     const rightUpperArm = new THREE.Mesh(upperArmGeometry, armMaterial);
     rightUpperArm.position.set(0.3, 1.05, 0);
-    rightUpperArm.castShadow = true;
     group.add(rightUpperArm);
 
     // Руки (нижняя часть)
@@ -184,12 +178,10 @@ function createJuggler(name = '', color = '#4CAF50') {
 
     const leftLowerArm = new THREE.Mesh(lowerArmGeometry, armMaterial);
     leftLowerArm.position.set(-0.3, 0.75, 0);
-    leftLowerArm.castShadow = true;
     group.add(leftLowerArm);
 
     const rightLowerArm = new THREE.Mesh(lowerArmGeometry, armMaterial);
     rightLowerArm.position.set(0.3, 0.75, 0);
-    rightLowerArm.castShadow = true;
     group.add(rightLowerArm);
 
     // Кисти рук
@@ -197,12 +189,10 @@ function createJuggler(name = '', color = '#4CAF50') {
 
     const leftHand = new THREE.Mesh(handGeometry, armMaterial);
     leftHand.position.set(-0.3, 0.6, 0);
-    leftHand.castShadow = true;
     group.add(leftHand);
 
     const rightHand = new THREE.Mesh(handGeometry, armMaterial);
     rightHand.position.set(0.3, 0.6, 0);
-    rightHand.castShadow = true;
     group.add(rightHand);
 
     // Ноги (бедра) - правильно позиционированы
@@ -211,12 +201,10 @@ function createJuggler(name = '', color = '#4CAF50') {
 
     const leftThigh = new THREE.Mesh(thighGeometry, legMaterial);
     leftThigh.position.set(-0.1, 0.4, 0);
-    leftThigh.castShadow = true;
     group.add(leftThigh);
 
     const rightThigh = new THREE.Mesh(thighGeometry, legMaterial);
     rightThigh.position.set(0.1, 0.4, 0);
-    rightThigh.castShadow = true;
     group.add(rightThigh);
 
     // Ноги (голени)
@@ -224,12 +212,10 @@ function createJuggler(name = '', color = '#4CAF50') {
 
     const leftShin = new THREE.Mesh(shinGeometry, legMaterial);
     leftShin.position.set(-0.1, 0.15, 0);
-    leftShin.castShadow = true;
     group.add(leftShin);
 
     const rightShin = new THREE.Mesh(shinGeometry, legMaterial);
     rightShin.position.set(0.1, 0.15, 0);
-    rightShin.castShadow = true;
     group.add(rightShin);
 
     // Ступни - точно на уровне пола
@@ -238,12 +224,10 @@ function createJuggler(name = '', color = '#4CAF50') {
 
     const leftFoot = new THREE.Mesh(footGeometry, footMaterial);
     leftFoot.position.set(-0.1, 0.03, 0.04);
-    leftFoot.castShadow = true;
     group.add(leftFoot);
 
     const rightFoot = new THREE.Mesh(footGeometry, footMaterial);
     rightFoot.position.set(0.1, 0.03, 0.04);
-    rightFoot.castShadow = true;
     group.add(rightFoot);
 
     group.userData = { 
@@ -2805,6 +2789,15 @@ document.getElementById('instructions-modal').addEventListener('click', function
 document.addEventListener('DOMContentLoaded', function () {
     const modal = document.getElementById('instructions-modal');
     const modalContent = modal.querySelector('.modal-content');
+    const originalToggleInstructions = window.toggleInstructions;
+    window.toggleInstructions = function () {
+        originalToggleInstructions();
+        if (controls) controls.enabled = modal.style.display !== 'flex';
+    };
+    modalContent.addEventListener('touchstart', e => { if (controls) controls.enabled = false; }, { passive: true });
+    modalContent.addEventListener('touchmove', e => e.stopPropagation(), { passive: true });
+});
+ctor('.modal-content');
     const originalToggleInstructions = window.toggleInstructions;
     window.toggleInstructions = function () {
         originalToggleInstructions();
