@@ -1243,6 +1243,40 @@
                 <button class="button" onclick="updateSelectedJuggler()">Применить</button>
             </div>
 
+            <div id="cube-editor" class="section" style="display: none;">
+                <h3>Редактор куба</h3>
+                <div class="control-group">
+                    <label>Цвета сторон:</label>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 5px;">
+                        <div>
+                            <label style="font-size: 10px;">Справа (+X):</label>
+                            <input type="color" id="cubeColor0" value="#ff9800">
+                        </div>
+                        <div>
+                            <label style="font-size: 10px;">Слева (-X):</label>
+                            <input type="color" id="cubeColor1" value="#ff9800">
+                        </div>
+                        <div>
+                            <label style="font-size: 10px;">Сверху (+Y):</label>
+                            <input type="color" id="cubeColor2" value="#ff9800">
+                        </div>
+                        <div>
+                            <label style="font-size: 10px;">Снизу (-Y):</label>
+                            <input type="color" id="cubeColor3" value="#ff9800">
+                        </div>
+                        <div>
+                            <label style="font-size: 10px;">Спереди (+Z):</label>
+                            <input type="color" id="cubeColor4" value="#ff9800">
+                        </div>
+                        <div>
+                            <label style="font-size: 10px;">Сзади (-Z):</label>
+                            <input type="color" id="cubeColor5" value="#ff9800">
+                        </div>
+                    </div>
+                </div>
+                <button class="button" onclick="updateSelectedCubeColors()">Применить цвета</button>
+            </div>
+
             <div class="section">
                 <h3>Анимация</h3>
                 <div class="control-group">

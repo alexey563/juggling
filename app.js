@@ -65,10 +65,10 @@ function init() {
     scene = new THREE.Scene();
     scene.background = new THREE.Color(0x222222);
 
-    camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    const container = document.getElementById('canvas-container');
+    camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1000);
     camera.position.set(0, 10, 10);
 
-    const container = document.getElementById('canvas-container');
     renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(container.clientWidth, container.clientHeight);
     renderer.shadowMap.enabled = true;
@@ -314,21 +314,28 @@ function addCube() {
     const width = parseFloat(document.getElementById('cubeWidth').value) || 0.5;
     const height = parseFloat(document.getElementById('cubeHeight').value) || 0.5;
     const depth = parseFloat(document.getElementById('cubeDepth').value) || 0.5;
+    
     const geometry = new THREE.BoxGeometry(width, height, depth);
-    const material = new THREE.MeshLambertMaterial({ color: 0xff9800 });
-    const cube = new THREE.Mesh(geometry, material);
+    const defaultColor = '#ff9800';
+    const sideColors = Array(6).fill(defaultColor);
+    const materials = sideColors.map(color => new THREE.MeshLambertMaterial({ color }));
+    
+    const cube = new THREE.Mesh(geometry, materials);
     cube.position.set(Math.random() * 6 - 3, height / 2, Math.random() * 6 - 3);
     cube.castShadow = true;
     cube.receiveShadow = true;
-    cube.userData = { type: 'cube', id: Date.now() + Math.random(), height, width, depth };
+    cube.userData = { type: 'cube', id: Date.now() + Math.random(), height, width, depth, sideColors };
     scene.add(cube);
     cubes.push(cube);
 }
 
 function createCubeFromData(cubeData) {
     const geometry = new THREE.BoxGeometry(cubeData.width, cubeData.height, cubeData.depth);
-    const material = new THREE.MeshLambertMaterial({ color: 0xff9800 });
-    const cube = new THREE.Mesh(geometry, material);
+    
+    const sideColors = cubeData.sideColors || Array(6).fill(cubeData.color || '#ff9800');
+    const materials = sideColors.map(color => new THREE.MeshLambertMaterial({ color }));
+    
+    const cube = new THREE.Mesh(geometry, materials);
 
     // Handle position from either scenario or keyframe
     if (cubeData.position) {
@@ -346,8 +353,47 @@ function createCubeFromData(cubeData) {
 
     cube.castShadow = true;
     cube.receiveShadow = true;
-    cube.userData = { type: 'cube', id: cubeData.id, height: cubeData.height, width: cubeData.width, depth: cubeData.depth };
+    cube.userData = { type: 'cube', id: cubeData.id, height: cubeData.height, width: cubeData.width, depth: cubeData.depth, sideColors };
     return cube;
+}
+
+function updateSelectedCubeColors() {
+    if (selectedObjects.length !== 1 || selectedObjects[0].userData.type !== 'cube') return;
+
+    const cube = selectedObjects[0];
+    const cubeId = cube.userData.id;
+    const newColors = [];
+    for (let i = 0; i < 6; i++) {
+        newColors.push(document.getElementById(`cubeColor${i}`).value);
+    }
+
+    // 1. Update the current cube object in the scene
+    updateCubeColors(cube, newColors);
+
+    // 2. Propagate these changes to all keyframes
+    keyframes.forEach(kf => {
+        if (kf.objects && kf.objects.cubes) {
+            const cubeDataInKeyframe = kf.objects.cubes.find(c => c.id === cubeId);
+            if (cubeDataInKeyframe) {
+                cubeDataInKeyframe.sideColors = [...newColors];
+            }
+        }
+    });
+    
+    showModal({ title: 'Обновлено', message: 'Цвета сторон куба обновлены во всей анимации.', status: 'success' });
+}
+
+function updateCubeColors(cube, colors) {
+    if (!Array.isArray(cube.material)) {
+        // Convert single material to array if needed
+        const oldColor = cube.material.color.getHex();
+        cube.material = Array(6).fill(0).map(() => new THREE.MeshLambertMaterial({ color: oldColor }));
+    }
+    
+    for (let i = 0; i < 6; i++) {
+        cube.material[i].color.set(colors[i]);
+    }
+    cube.userData.sideColors = [...colors];
 }
 
 function createPassFromData(passData, juggler1, juggler2) {
@@ -764,13 +810,25 @@ function clearSelection() {
 
 function updateUI() {
     const jugglerEditor = document.getElementById('juggler-editor');
+    const cubeEditor = document.getElementById('cube-editor');
+    
     if (selectedObjects.length === 1 && selectedObjects[0].userData.type === 'juggler') {
         const juggler = selectedObjects[0];
         document.getElementById('jugglerName').value = juggler.userData.name || '';
         document.getElementById('jugglerColor').value = juggler.userData.color || '#4CAF50';
         jugglerEditor.style.display = 'block';
+        cubeEditor.style.display = 'none';
+    } else if (selectedObjects.length === 1 && selectedObjects[0].userData.type === 'cube') {
+        const cube = selectedObjects[0];
+        const sideColors = cube.userData.sideColors || Array(6).fill('#ff9800');
+        for (let i = 0; i < 6; i++) {
+            document.getElementById(`cubeColor${i}`).value = sideColors[i];
+        }
+        cubeEditor.style.display = 'block';
+        jugglerEditor.style.display = 'none';
     } else {
         jugglerEditor.style.display = 'none';
+        cubeEditor.style.display = 'none';
     }
 
 
@@ -1116,7 +1174,7 @@ function saveScenario() {
             timestamp: new Date().toISOString(),
             thumbnail: thumbnail,
             jugglers: jugglers.map(j => ({ id: j.userData.id, position: j.position, rotation: j.rotation, name: j.userData.name, color: j.userData.color })),
-            cubes: cubes.map(c => ({ id: c.userData.id, position: c.position, rotation: c.rotation, dimensions: { width: c.userData.width, height: c.userData.height, depth: c.userData.depth } })),
+            cubes: cubes.map(c => ({ id: c.userData.id, position: c.position, rotation: c.rotation, sideColors: c.userData.sideColors, dimensions: { width: c.userData.width, height: c.userData.height, depth: c.userData.depth } })),
             passes: passes.map(p => ({ id: p.userData.id, juggler1Id: p.userData.juggler1.userData.id, juggler2Id: p.userData.juggler2.userData.id, count: p.userData.count, color: p.userData.color, height: p.userData.height })),
             animation: { keyframes: keyframes.map(kf => ({ id: kf.id, name: kf.name, objects: kf.objects })), speed: animationSpeed }
         };
@@ -2379,7 +2437,7 @@ function addKeyframe() {
         name: `Кадр ${keyframes.length + 1}`,
         objects: {
             jugglers: jugglers.map(j => ({ id: j.userData.id, x: j.position.x, y: j.position.y, z: j.position.z, rotationX: j.rotation.x, rotationY: j.rotation.y, visible: j.visible, name: j.userData.name, color: j.userData.color })),
-            cubes: cubes.map(c => ({ id: c.userData.id, x: c.position.x, y: c.position.y, z: c.position.z, rotationX: c.rotation.x, rotationY: c.rotation.y, rotationZ: c.rotation.z, width: c.userData.width, height: c.userData.height, depth: c.userData.depth, visible: c.visible })),
+            cubes: cubes.map(c => ({ id: c.userData.id, x: c.position.x, y: c.position.y, z: c.position.z, rotationX: c.rotation.x, rotationY: c.rotation.y, rotationZ: c.rotation.z, width: c.userData.width, height: c.userData.height, depth: c.userData.depth, sideColors: c.userData.sideColors, visible: c.visible })),
             passes: passes.map(p => ({ id: p.userData.id, juggler1Id: p.userData.juggler1.userData.id, juggler2Id: p.userData.juggler2.userData.id, count: p.userData.count, color: p.userData.color, height: p.userData.height, visible: p.visible }))
         }
     };
@@ -2414,7 +2472,7 @@ function insertKeyframeAfter(index) {
         name: `Кадр ${index + 2}`, // Will be renumbered
         objects: {
             jugglers: jugglers.map(j => ({ id: j.userData.id, x: j.position.x, y: j.position.y, z: j.position.z, rotationX: j.rotation.x, rotationY: j.rotation.y, visible: j.visible, name: j.userData.name, color: j.userData.color })),
-            cubes: cubes.map(c => ({ id: c.userData.id, x: c.position.x, y: c.position.y, z: c.position.z, rotationX: c.rotation.x, rotationY: c.rotation.y, rotationZ: c.rotation.z, width: c.userData.width, height: c.userData.height, depth: c.userData.depth, visible: c.visible })),
+            cubes: cubes.map(c => ({ id: c.userData.id, x: c.position.x, y: c.position.y, z: c.position.z, rotationX: c.rotation.x, rotationY: c.rotation.y, rotationZ: c.rotation.z, width: c.userData.width, height: c.userData.height, depth: c.userData.depth, sideColors: c.userData.sideColors, visible: c.visible })),
             passes: passes.map(p => ({ id: p.userData.id, juggler1Id: p.userData.juggler1.userData.id, juggler2Id: p.userData.juggler2.userData.id, count: p.userData.count, color: p.userData.color, height: p.userData.height, visible: p.visible }))
         }
     };
@@ -2444,7 +2502,7 @@ function insertKeyframeAtBeginning() {
         name: `Кадр 1`, // Will be renumbered
         objects: {
             jugglers: jugglers.map(j => ({ id: j.userData.id, x: j.position.x, y: j.position.y, z: j.position.z, rotationX: j.rotation.x, rotationY: j.rotation.y, visible: j.visible, name: j.userData.name, color: j.userData.color })),
-            cubes: cubes.map(c => ({ id: c.userData.id, x: c.position.x, y: c.position.y, z: c.position.z, rotationX: c.rotation.x, rotationY: c.rotation.y, rotationZ: c.rotation.z, width: c.userData.width, height: c.userData.height, depth: c.userData.depth, visible: c.visible })),
+            cubes: cubes.map(c => ({ id: c.userData.id, x: c.position.x, y: c.position.y, z: c.position.z, rotationX: c.rotation.x, rotationY: c.rotation.y, rotationZ: c.rotation.z, width: c.userData.width, height: c.userData.height, depth: c.userData.depth, sideColors: c.userData.sideColors, visible: c.visible })),
             passes: passes.map(p => ({ id: p.userData.id, juggler1Id: p.userData.juggler1.userData.id, juggler2Id: p.userData.juggler2.userData.id, count: p.userData.count, color: p.userData.color, height: p.userData.height, visible: p.visible }))
         }
     };
@@ -2551,7 +2609,7 @@ function updateCurrentKeyframe() {
         name: keyframes[currentKeyframe].name,
         objects: {
             jugglers: jugglers.map(j => ({ id: j.userData.id, x: j.position.x, y: j.position.y, z: j.position.z, rotationX: j.rotation.x, rotationY: j.rotation.y, visible: j.visible, name: j.userData.name, color: j.userData.color })),
-            cubes: cubes.map(c => ({ id: c.userData.id, x: c.position.x, y: c.position.y, z: c.position.z, rotationX: c.rotation.x, rotationY: c.rotation.y, rotationZ: c.rotation.z, width: c.userData.width, height: c.userData.height, depth: c.userData.depth, visible: c.visible })),
+            cubes: cubes.map(c => ({ id: c.userData.id, x: c.position.x, y: c.position.y, z: c.position.z, rotationX: c.rotation.x, rotationY: c.rotation.y, rotationZ: c.rotation.z, width: c.userData.width, height: c.userData.height, depth: c.userData.depth, sideColors: c.userData.sideColors, visible: c.visible })),
             passes: passes.map(p => ({ id: p.userData.id, juggler1Id: p.userData.juggler1.userData.id, juggler2Id: p.userData.juggler2.userData.id, count: p.userData.count, color: p.userData.color, height: p.userData.height, visible: p.visible }))
         }
     };
@@ -2682,6 +2740,10 @@ function animateToNewKeyframeState(keyframe) {
             scene.add(cube);
             cubes.push(cube);
         } else {
+            // Update cube colors instantly
+            if (cData.sideColors) {
+                updateCubeColors(cube, cData.sideColors);
+            }
             animateObjectToState(cube, cData);
         }
     });
