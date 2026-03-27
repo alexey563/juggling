@@ -127,7 +127,7 @@ function createJuggler(name = '', color = '#4CAF50') {
 
     // Тело (более правильная форма)
     const bodyGeometry = new THREE.CylinderGeometry(0.2, 0.25, 0.8, 12);
-    const bodyMaterial = new THREE.MeshLambertMaterial({ color: color });
+    const bodyMaterial = new THREE.MeshBasicMaterial({ color: color });
     const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
     body.position.y = 0.9;
     body.name = 'body'; // Assign name for easy access
@@ -135,14 +135,14 @@ function createJuggler(name = '', color = '#4CAF50') {
 
     // Голова
     const headGeometry = new THREE.SphereGeometry(0.15, 12, 8);
-    const headMaterial = new THREE.MeshLambertMaterial({ color: 0xffdbac });
+    const headMaterial = new THREE.MeshBasicMaterial({ color: 0xffdbac });
     const head = new THREE.Mesh(headGeometry, headMaterial);
     head.position.y = 1.45;
     group.add(head);
 
     // Шея
     const neckGeometry = new THREE.CylinderGeometry(0.06, 0.06, 0.1, 8);
-    const neckMaterial = new THREE.MeshLambertMaterial({ color: 0xffdbac });
+    const neckMaterial = new THREE.MeshBasicMaterial({ color: 0xffdbac });
     const neck = new THREE.Mesh(neckGeometry, neckMaterial);
     neck.position.y = 1.35;
     group.add(neck);
@@ -157,7 +157,7 @@ function createJuggler(name = '', color = '#4CAF50') {
 
     // Руки (верхняя часть)
     const upperArmGeometry = new THREE.CylinderGeometry(0.04, 0.04, 0.3, 8);
-    const armMaterial = new THREE.MeshLambertMaterial({ color: 0xffdbac });
+    const armMaterial = new THREE.MeshBasicMaterial({ color: 0xffdbac });
 
     const leftUpperArm = new THREE.Mesh(upperArmGeometry, armMaterial);
     leftUpperArm.position.set(-0.3, 1.05, 0);
@@ -191,7 +191,7 @@ function createJuggler(name = '', color = '#4CAF50') {
 
     // Ноги (бедра) - правильно позиционированы
     const thighGeometry = new THREE.CylinderGeometry(0.06, 0.06, 0.35, 8);
-    const legMaterial = new THREE.MeshLambertMaterial({ color: 0x2196F3 });
+    const legMaterial = new THREE.MeshBasicMaterial({ color: 0x2196F3 });
 
     const leftThigh = new THREE.Mesh(thighGeometry, legMaterial);
     leftThigh.position.set(-0.1, 0.4, 0);
@@ -214,7 +214,7 @@ function createJuggler(name = '', color = '#4CAF50') {
 
     // Ступни - точно на уровне пола
     const footGeometry = new THREE.BoxGeometry(0.12, 0.06, 0.2);
-    const footMaterial = new THREE.MeshLambertMaterial({ color: 0x333333 });
+    const footMaterial = new THREE.MeshBasicMaterial({ color: 0x333333 });
 
     const leftFoot = new THREE.Mesh(footGeometry, footMaterial);
     leftFoot.position.set(-0.1, 0.03, 0.04);
