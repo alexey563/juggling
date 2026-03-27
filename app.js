@@ -71,8 +71,6 @@ function init() {
 
     renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(container.clientWidth, container.clientHeight);
-    renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     container.appendChild(renderer.domElement);
 
     controls = new THREE.OrbitControls(camera, renderer.domElement);
@@ -87,16 +85,12 @@ function init() {
 
     const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
     directionalLight.position.set(10, 10, 5);
-    directionalLight.castShadow = true;
-    directionalLight.shadow.mapSize.width = 2048;
-    directionalLight.shadow.mapSize.height = 2048;
     scene.add(directionalLight);
 
     const floorGeometry = new THREE.PlaneGeometry(20, 20);
     const floorMaterial = new THREE.MeshLambertMaterial({ color: 0x333333 });
     const floor = new THREE.Mesh(floorGeometry, floorMaterial);
     floor.rotation.x = -Math.PI / 2;
-    floor.receiveShadow = true;
     scene.add(floor);
 
     const gridHelper = new THREE.GridHelper(20, 20, 0x444444, 0x444444);
@@ -390,7 +384,6 @@ function createPassFromData(passData, juggler1, juggler2) {
     const tubeGeometry = new THREE.TubeGeometry(curve, 50, 0.05, 8, false);
     const tubeMaterial = new THREE.MeshLambertMaterial({ color });
     const tube = new THREE.Mesh(tubeGeometry, tubeMaterial);
-    tube.castShadow = true;
     const canvas = document.createElement('canvas');
     const context = canvas.getContext('2d');
     canvas.width = 128;
@@ -677,7 +670,6 @@ function createPass(juggler1, juggler2) {
     const tubeGeometry = new THREE.TubeGeometry(curve, 50, 0.05, 8, false);
     const tubeMaterial = new THREE.MeshLambertMaterial({ color });
     const tube = new THREE.Mesh(tubeGeometry, tubeMaterial);
-    tube.castShadow = true;
     const canvas = document.createElement('canvas');
     const context = canvas.getContext('2d');
     canvas.width = 128;
@@ -2789,15 +2781,6 @@ document.getElementById('instructions-modal').addEventListener('click', function
 document.addEventListener('DOMContentLoaded', function () {
     const modal = document.getElementById('instructions-modal');
     const modalContent = modal.querySelector('.modal-content');
-    const originalToggleInstructions = window.toggleInstructions;
-    window.toggleInstructions = function () {
-        originalToggleInstructions();
-        if (controls) controls.enabled = modal.style.display !== 'flex';
-    };
-    modalContent.addEventListener('touchstart', e => { if (controls) controls.enabled = false; }, { passive: true });
-    modalContent.addEventListener('touchmove', e => e.stopPropagation(), { passive: true });
-});
-ctor('.modal-content');
     const originalToggleInstructions = window.toggleInstructions;
     window.toggleInstructions = function () {
         originalToggleInstructions();
