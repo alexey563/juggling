@@ -294,35 +294,12 @@ function addCube() {
     const depth = parseFloat(document.getElementById('cubeDepth').value) || 0.5;
     
     const geometry = new THREE.BoxGeometry(width, height, depth);
-    const defaultColor = '#ff9800';
-    const sideColors = Array(6).fill(defaultColor);
-    const materials = sideColors.map((color, i) => {
-        // Create a canvas for the front face (+Z is index 4 in THREE.BoxGeometry)
-        if (i === 4) {
-            const canvas = document.createElement('canvas');
-            canvas.width = 128;
-            canvas.height = 128;
-            const ctx = canvas.getContext('2d');
-            ctx.fillStyle = color;
-            ctx.fillRect(0, 0, 128, 128);
-            ctx.fillStyle = 'white';
-            ctx.font = 'bold 40px Arial';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText('FRONT', 64, 64);
-            ctx.strokeStyle = 'black';
-            ctx.lineWidth = 4;
-            ctx.strokeText('FRONT', 64, 64);
-            const texture = new THREE.CanvasTexture(canvas);
-            return new THREE.MeshBasicMaterial({ map: texture });
-        }
-        return new THREE.MeshBasicMaterial({ color });
-    });
-    
-    const cube = new THREE.Mesh(geometry, materials);
+    const cube = new THREE.Mesh(geometry, []);
     cube.position.set(Math.random() * 6 - 3, height / 2, Math.random() * 6 - 3);
-    cube.castShadow = true;
-    cube.receiveShadow = true;
+    
+    const sideColors = Array(6).fill('#ff9800');
+    updateCubeColors(cube, sideColors, false);
+    
     cube.userData = { type: 'cube', id: Date.now() + Math.random(), height, width, depth, sideColors };
     scene.add(cube);
     cubes.push(cube);
@@ -330,32 +307,10 @@ function addCube() {
 
 function createCubeFromData(cubeData) {
     const geometry = new THREE.BoxGeometry(cubeData.width, cubeData.height, cubeData.depth);
+    const cube = new THREE.Mesh(geometry, []);
     
     const sideColors = cubeData.sideColors || Array(6).fill(cubeData.color || '#ff9800');
-    const materials = sideColors.map((color, i) => {
-        // Create a canvas for the front face (+Z is index 4 in THREE.BoxGeometry)
-        if (i === 4) {
-            const canvas = document.createElement('canvas');
-            canvas.width = 128;
-            canvas.height = 128;
-            const ctx = canvas.getContext('2d');
-            ctx.fillStyle = color;
-            ctx.fillRect(0, 0, 128, 128);
-            ctx.fillStyle = 'white';
-            ctx.font = 'bold 40px Arial';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText('FRONT', 64, 64);
-            ctx.strokeStyle = 'black';
-            ctx.lineWidth = 4;
-            ctx.strokeText('FRONT', 64, 64);
-            const texture = new THREE.CanvasTexture(canvas);
-            return new THREE.MeshBasicMaterial({ map: texture });
-        }
-        return new THREE.MeshBasicMaterial({ color });
-    });
-    
-    const cube = new THREE.Mesh(geometry, materials);
+    updateCubeColors(cube, sideColors, false);
 
     // Handle position from either scenario or keyframe
     if (cubeData.position) {
@@ -371,8 +326,6 @@ function createCubeFromData(cubeData) {
         cube.rotation.set(cubeData.rotationX || 0, cubeData.rotationY || 0, cubeData.rotationZ || 0);
     }
 
-    cube.castShadow = true;
-    cube.receiveShadow = true;
     cube.userData = { type: 'cube', id: cubeData.id, height: cubeData.height, width: cubeData.width, depth: cubeData.depth, sideColors };
     return cube;
 }
@@ -388,7 +341,7 @@ function updateSelectedCubeColors() {
     }
 
     // 1. Update the current cube object in the scene
-    updateCubeColors(cube, newColors);
+    updateCubeColors(cube, newColors, true);
 
     // 2. Propagate these changes to all keyframes
     keyframes.forEach(kf => {
@@ -403,18 +356,16 @@ function updateSelectedCubeColors() {
     showModal({ title: 'Обновлено', message: 'Цвета сторон куба обновлены во всей анимации.', status: 'success' });
 }
 
-function updateCubeColors(cube, colors) {
+function updateCubeColors(cube, colors, isSelected = false) {
     if (!Array.isArray(cube.material)) {
-        // Convert single material to array if needed
         cube.material = Array(6).fill(0).map(() => new THREE.MeshBasicMaterial());
     }
     
     for (let i = 0; i < 6; i++) {
-        if (i === 4) {
-            // Redraw FRONT label on new background color
+        if (i === 4 && isSelected) {
+            // Draw FRONT label ONLY if selected
             const canvas = document.createElement('canvas');
-            canvas.width = 128;
-            canvas.height = 128;
+            canvas.width = 128; canvas.height = 128;
             const ctx = canvas.getContext('2d');
             ctx.fillStyle = colors[i];
             ctx.fillRect(0, 0, 128, 128);
@@ -422,15 +373,16 @@ function updateCubeColors(cube, colors) {
             ctx.font = 'bold 40px Arial';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            ctx.fillText('FRONT', 64, 64);
+            ctx.fillText('ПЕРЕД', 64, 64);
             ctx.strokeStyle = 'black';
             ctx.lineWidth = 4;
-            ctx.strokeText('FRONT', 64, 64);
+            ctx.strokeText('ПЕРЕД', 64, 64);
             
             if (cube.material[i].map) cube.material[i].map.dispose();
             cube.material[i].map = new THREE.CanvasTexture(canvas);
-            cube.material[i].color.set(0xffffff); // Ensure white so texture shows correctly
+            cube.material[i].color.set(0xffffff);
         } else {
+            // No label (pure color)
             cube.material[i].color.set(colors[i]);
             if (cube.material[i].map) {
                 cube.material[i].map.dispose();
@@ -450,7 +402,7 @@ function createPassFromData(passData, juggler1, juggler2) {
     middle.y += height;
     const curve = new THREE.QuadraticBezierCurve3(start, middle, end);
     const tubeGeometry = new THREE.TubeGeometry(curve, 50, 0.05, 8, false);
-    const tubeMaterial = new THREE.MeshLambertMaterial({ color });
+    const tubeMaterial = new THREE.MeshBasicMaterial({ color });
     const tube = new THREE.Mesh(tubeGeometry, tubeMaterial);
     const canvas = document.createElement('canvas');
     const context = canvas.getContext('2d');
@@ -736,7 +688,7 @@ function createPass(juggler1, juggler2) {
     middle.y += height;
     const curve = new THREE.QuadraticBezierCurve3(start, middle, end);
     const tubeGeometry = new THREE.TubeGeometry(curve, 50, 0.05, 8, false);
-    const tubeMaterial = new THREE.MeshLambertMaterial({ color });
+    const tubeMaterial = new THREE.MeshBasicMaterial({ color });
     const tube = new THREE.Mesh(tubeGeometry, tubeMaterial);
     const canvas = document.createElement('canvas');
     const context = canvas.getContext('2d');
@@ -807,6 +759,11 @@ function selectObject(object) {
         const box = new THREE.BoxHelper(object, 0xffff00);
         object.userData.selectionBox = box;
         scene.add(box);
+
+        if (object.userData.type === 'cube') {
+            updateCubeColors(object, object.userData.sideColors, true);
+        }
+
         updateUI();
     }
 }
@@ -836,6 +793,11 @@ function deselectObject(object) {
             scene.remove(object.userData.selectionBox);
             delete object.userData.selectionBox;
         }
+
+        if (object.userData.type === 'cube') {
+            updateCubeColors(object, object.userData.sideColors, false);
+        }
+
         updateUI();
     }
 }
@@ -845,6 +807,10 @@ function clearSelection() {
         if (object.userData.selectionBox) {
             scene.remove(object.userData.selectionBox);
             delete object.userData.selectionBox;
+        }
+
+        if (object.userData.type === 'cube') {
+            updateCubeColors(object, object.userData.sideColors, false);
         }
     });
     selectedObjects = [];
@@ -2857,3 +2823,4 @@ document.addEventListener('DOMContentLoaded', function () {
     modalContent.addEventListener('touchstart', e => { if (controls) controls.enabled = false; }, { passive: true });
     modalContent.addEventListener('touchmove', e => e.stopPropagation(), { passive: true });
 });
+;
