@@ -357,11 +357,12 @@ function updateSelectedCubeColors() {
 }
 
 function updateCubeColors(cube, colors, isSelected = false) {
-    if (!Array.isArray(cube.material)) {
+    if (!Array.isArray(cube.material) || cube.material.length !== 6) {
         cube.material = Array(6).fill(0).map(() => new THREE.MeshBasicMaterial());
     }
     
     for (let i = 0; i < 6; i++) {
+        const material = cube.material[i];
         if (i === 4 && isSelected) {
             // Draw FRONT label ONLY if selected
             const canvas = document.createElement('canvas');
@@ -378,18 +379,18 @@ function updateCubeColors(cube, colors, isSelected = false) {
             ctx.lineWidth = 4;
             ctx.strokeText('ПЕРЕД', 64, 64);
             
-            if (cube.material[i].map) cube.material[i].map.dispose();
-            cube.material[i].map = new THREE.CanvasTexture(canvas);
-            cube.material[i].color.set(0xffffff);
+            if (material.map) material.map.dispose();
+            material.map = new THREE.CanvasTexture(canvas);
+            material.color.set(0xffffff);
         } else {
             // No label (pure color)
-            cube.material[i].color.set(colors[i]);
-            if (cube.material[i].map) {
-                cube.material[i].map.dispose();
-                cube.material[i].map = null;
+            material.color.set(colors[i]);
+            if (material.map) {
+                material.map.dispose();
+                material.map = null;
             }
         }
-        cube.material[i].needsUpdate = true;
+        material.needsUpdate = true;
     }
     cube.userData.sideColors = [...colors];
 }
